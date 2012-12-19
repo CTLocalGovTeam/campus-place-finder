@@ -1,24 +1,25 @@
 ﻿/** @license
- | Version 10.1.1
- | Copyright 2012 Esri
- |
- | Licensed under the Apache License, Version 2.0 (the "License");
- | you may not use this file except in compliance with the License.
- | You may obtain a copy of the License at
- |
- |    http://www.apache.org/licenses/LICENSE-2.0
- |
- | Unless required by applicable law or agreed to in writing, software
- | distributed under the License is distributed on an "AS IS" BASIS,
- | WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- | See the License for the specific language governing permissions and
- | limitations under the License.
- */
+| Version 10.1.1
+| Copyright 2012 Esri
+|
+| Licensed under the Apache License, Version 2.0 (the "License");
+| you may not use this file except in compliance with the License.
+| You may obtain a copy of the License at
+|
+|    http://www.apache.org/licenses/LICENSE-2.0
+|
+| Unless required by applicable law or agreed to in writing, software
+| distributed under the License is distributed on an "AS IS" BASIS,
+| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+| See the License for the specific language governing permissions and
+| limitations under the License.
+*/
 var serviceRequestStore = '';      //Variable for storing service request types.
+var reqId;
 
-//Function to add service request layer on map
+//add service request layer on map
 function AddServiceRequestLayerOnMap() {
-    var serviceRequestLayer = new esri.layers.FeatureLayer(serviceRequestLayerInfo.ServiceUrl, {
+    var serviceRequestLayer = new esri.layers.FeatureLayer(serviceRequestLayerInfo.ServiceURL, {
         mode: esri.layers.FeatureLayer.MODE_SELECTION,
         outFields: [serviceRequestLayerInfo.OutFields],
         id: serviceRequestLayerInfo.Key,
@@ -29,17 +30,18 @@ function AddServiceRequestLayerOnMap() {
 
     dojo.connect(serviceRequestLayer, "onClick", function (evt) {
         map.infoWindow.hide();
+
+        HideCommentsContainer();
+
+        HideDetailsInfo();
+        HideCreateRequestContainer();
         ShowServiceRequestDetails(evt.graphic.geometry, evt.graphic.attributes);
-        //For cancelling event propagation
+        //cancel event propagation
         evt = (evt) ? evt : event;
         evt.cancelBubble = true;
         if (evt.stopPropagation) {
             evt.stopPropagation();
         }
-    });
-
-    dojo.connect(serviceRequestLayer, "onSelectionComplete", function () {
-        HideLoadingMessage();
     });
     dojo.connect(serviceRequestLayer, "onMouseOver", function (evt) {
         map.setMapCursor('pointer');
@@ -48,10 +50,10 @@ function AddServiceRequestLayerOnMap() {
         map.setMapCursor('crosshair');
     });
     var serviceRequestLayerHandle = dojo.connect(serviceRequestLayer, "onSelectionComplete", function (features) {
-        dojo.disconnect(serviceRequestLayerHandle);
         AddServiceLegendItem(serviceRequestLayer);
         PopulateRequestTypes(serviceRequestLayer.fields);
         HideLoadingMessage();
+        dojo.disconnect(serviceRequestLayerHandle);
     });
     var serviceRequestCommentLayer = new esri.layers.FeatureLayer(serviceRequestLayerInfo.CommentsLayerURL, {
         mode: esri.layers.FeatureLayer.MODE_SELECTION,
@@ -61,49 +63,41 @@ function AddServiceRequestLayerOnMap() {
     map.addLayer(serviceRequestCommentLayer);
 }
 
-//function to showinfowindow
+//show details of existing service request
 function ShowServiceRequestDetails(mapPoint, attributes) {
+    SelectedId = dojo.string.substitute(serviceRequestLayerInfo.ShareFields, attributes);
     infoWindowDescriptionFields = [];
-    map.infoWindow.setTitle("<span id='spanInfoTitle' style='color:white; font-size:11px; font-weight:bolder; font-family:Verdana;'> Service Request ID: #" + attributes.REQUESTID + "</span> <span id='spanRequestId' style='display:none;'>" + attributes.REQUESTID + "</span>");
-    var mainTabContainer = ShowServiceRequestTabContainer(attributes);
-    map.infoWindow.setContent(mainTabContainer.domNode);
-    var windowPoint = map.toScreen(mapPoint);
-    map.infoWindow.resize(310, 295);
-    setTimeout(function () {
-        map.infoWindow.show(mapPoint, GetInfoWindowAnchor(windowPoint, 310));
-        mainTabContainer.resize();
-    }, 100);
-
-    FetchRequestComments(attributes.REQUESTID);
-    for (var index in infoWindowDescriptionFields) {
-        CreateScrollbar(dojo.byId(index), dojo.byId(infoWindowDescriptionFields[index]));
-    }
-
+    reqId = dojo.string.substitute(commentsInfoPopupFieldsCollection.RequestId, attributes);
+    ShowServiceRequestTabContainer(attributes);
+    selectedGraphics = mapPoint;
+    map.setExtent(GetBrowserMapExtent(mapPoint));
+    FetchRequestComments(dojo.string.substitute(commentsInfoPopupFieldsCollection.RequestId, attributes), attributes, mapPoint);
     RemoveChildren(dojo.byId("divAttachmentsData"));
     RemoveChildren(dojo.byId("divCommentsContent"));
     CreateRatingWidget(dojo.byId('commentRating'));
-
     ToggleCommentsView(false);
 }
 
-//function to fetch service request comments
-function FetchRequestComments(requestID) {
+//fetch comments for service request 
+function FetchRequestComments(requestID, attributes, mapPoint) {
     ShowDojoLoading(dojo.byId("divComments"));
     var query = new esri.tasks.Query();
-    query.where = "REQUESTID = '" + requestID + "'";
+    query.where = "requestid = '" + requestID + "'";
     query.outFields = ["*"];
     for (var layerInfo in serviceRequestLayerInfo) {
         //execute query
         if (layerInfo == "CommentsLayerURL") {
             map.getLayer(serviceRequestLayerInfo["Key"] + "Comments").selectFeatures(query, esri.layers.FeatureLayer.SELECTION_NEW, function (features) {
+
                 dojo.byId('spanCommentsCount').innerHTML = features.length;
                 var commentsTable = document.createElement("table");
-                commentsTable.style.width = "90%";
+                commentsTable.style.width = "95%";
+                commentsTable.style.paddingLeft = "5px";
                 var commentsTBody = document.createElement("tbody");
                 commentsTable.appendChild(commentsTBody);
                 dojo.byId("divCommentsContent").appendChild(commentsTable);
                 if (features.length > 0) {
-                    features.sort(SortResultFeatures);      //function to sort comments based on submitted date
+                    features.sort(SortResultFeatures);      //sort comments based on submitted date
                     for (var i = 0; i < features.length; i++) {
                         var trComments = document.createElement("tr");
                         var commentsCell = document.createElement("td");
@@ -112,9 +106,12 @@ function FetchRequestComments(requestID) {
                         trComments.appendChild(commentsCell);
                         commentsTBody.appendChild(trComments);
                         CreateRatingWidget(dojo.byId('commentRating' + i));
-                        SetRating(dojo.byId('commentRating' + i), features[i].attributes.RANK);
+                        SetRating(dojo.byId('commentRating' + i), dojo.string.substitute(commentsInfoPopupFieldsCollection.Rank, features[i].attributes));
                     }
                 }
+                setTimeout(function () {
+                    ShowInfoWindow(mapPoint, "Service Request ID: #" + dojo.string.substitute(commentsInfoPopupFieldsCollection.RequestId, attributes), dojo.byId("divCommentsInfo"), dojo.byId("tdCommentsHeader"));
+                }, 500);
                 HideDojoLoading();
                 CreateCommentsScrollBar();
             }, function (err) {
@@ -124,7 +121,7 @@ function FetchRequestComments(requestID) {
     }
 }
 
-//function to create comment record
+//create list of comments on service request
 function CreateCommentRecord(attributes, i) {
     var table = document.createElement("table");
     table.style.width = "100%";
@@ -141,7 +138,7 @@ function CreateCommentRecord(attributes, i) {
     var td1 = document.createElement("td");
 
     var date = new js.date();
-    var utcMilliseconds = Number(attributes.SUBMITDT);
+    var utcMilliseconds = Number(dojo.string.substitute(commentsInfoPopupFieldsCollection.SubmitDate, attributes));
     td1.innerHTML = "Date: " + dojo.date.locale.format(date.utcToLocal(date.utcTimestampFromMs(utcMilliseconds)), { datePattern: "MMM dd, yyyy", selector: "date" });
     td1.style.width = "150px";
 
@@ -154,8 +151,9 @@ function CreateCommentRecord(attributes, i) {
     var divComments = dojo.create("div", { "class": "wordBreakComments" }, td2);
     divComments.style.width = "270px";
     td2.colSpan = 3;
-    if (attributes.COMMENTS) {
-        divComments.innerHTML = attributes.COMMENTS;
+
+    if (dojo.string.substitute(commentsInfoPopupFieldsCollection.Comments, attributes)) {
+        divComments.innerHTML = dojo.string.substitute(commentsInfoPopupFieldsCollection.Comments, attributes);
     }
     else {
         divComments.innerHTML = showNullValueAs;
@@ -167,7 +165,7 @@ function CreateCommentRecord(attributes, i) {
     return table;
 }
 
-//function to add service request comment
+//Add service request comment
 function AddRequestComment() {
     var text = dojo.byId('txtComments').value.trim();
     if (text == "") {
@@ -184,10 +182,10 @@ function AddRequestComment() {
     var commentGraphic = new esri.Graphic();
     var date = new js.date();
     var attr = {
-        "REQUESTID": dojo.byId('spanRequestId').innerHTML,
-        "COMMENTS": text,
-        "SUBMITDT": date.utcMsFromTimestamp(date.localToUtc(date.localTimestampNow())),
-        "RANK": Number(dojo.byId('commentRating').value)
+        "requestid": reqId,
+        "comments": text,
+        "submitdt": date.utcMsFromTimestamp(date.localToUtc(date.localTimestampNow())),
+        "rank": Number(dojo.byId('commentRating').value)
     };
     commentGraphic.setAttributes(attr);
 
@@ -208,9 +206,14 @@ function AddRequestComment() {
                     commentsCell.appendChild(CreateCommentRecord(attr, index));
                     tr.appendChild(commentsCell);
                     CreateRatingWidget(dojo.byId('commentRating' + index));
-                    SetRating(dojo.byId('commentRating' + index), attr.RANK);
+                    SetRating(dojo.byId('commentRating' + index), attr.rank);
                     var query = new esri.tasks.Query();
-                    query.where = "REQUESTID = '" + attr["REQUESTID"] + "'";
+                    var relationshipId;
+                    commentsInfoPopupFieldsCollection.RequestId.replace(/\$\{([^\s\:\}]+)(?:\:([^\s\:\}]+))?\}/g, function (match, key) {
+                        relationshipId = key;
+                    });
+
+                    query.where = relationshipId + " = '" + attr.requestid + "'";
                     query.outFields = ["*"];
                     map.getLayer(serviceRequestLayerInfo.Key + "Comments").selectFeatures(query, esri.layers.FeatureLayer.SELECTION_NEW, function (features) {
                         dojo.byId('spanCommentsCount').innerHTML = features.length;
@@ -227,65 +230,52 @@ function AddRequestComment() {
     }
 }
 
-//Function for sorting comments according to date
+//Sort comments according to date
 function SortResultFeatures(a, b) {
-    var x = a.attributes.SUBMITDT;
-    var y = b.attributes.SUBMITDT;
+    var x = dojo.string.substitute(commentsInfoPopupFieldsCollection.SubmitDate, a.attributes);
+    var y = dojo.string.substitute(commentsInfoPopupFieldsCollection.SubmitDate, b.attributes);
     return ((x > y) ? -1 : ((x < y) ? 1 : 0));
 }
 
-//function to create tab layout for Service request
+//Create tab layout for Service request
 function ShowServiceRequestTabContainer(attributes) {
-    var tabContent = document.createElement('div');
-    tabContent.id = 'tabContent';
-
-    var dtlTab = new dijit.layout.ContentPane({
-        title: "Details",
-        content: CreateServiceRequestDetails(attributes)
-    }, dojo.byId('tabContent'));
-
-
-    var cmntTab = new dijit.layout.ContentPane({
-        title: "Comments",
-        content: CreateCommetsContainer()
-    }, dojo.byId('tabContent'));
-
-    dojo.connect(dtlTab, "onShow", function () {
-        if (dojo.byId("commentsContainer")) {
-            CreateScrollbar(dojo.byId("commentsContainer"), dojo.byId("commentsContent"));
-        }
-    });
-
-
-    dojo.connect(cmntTab, "onShow", function () {
+    CreateServiceRequestDetails(attributes);
+    CreateCommetsContainer();
+    dojo.byId("tdComments").style.display = "block";
+    dojo.byId("tdSubmitedDetails").style.display = "none";
+    dojo.byId("divCommentsDetails").style.display = "none";
+    dojo.byId("divRequestInfo").style.display = "block";
+    dojo.connect(dojo.byId("tdComments"), "onclick", function () {
+        dojo.byId("tdComments").style.display = "none";
+        dojo.byId("tdSubmitedDetails").style.display = "block";
+        dojo.byId("divCommentsDetails").style.display = "block";
+        dojo.byId("divRequestInfo").style.display = "none";
         CreateCommentsScrollBar();
     });
 
-    var tabContainer = document.createElement('div');
-    tabContainer.id = 'divTabContainer';
-    var tabs = new dijit.layout.TabContainer({
-        style: "width: 301px; height: 260px; vertical-align:middle;",
-        tabPosition: "bottom"
-    }, dojo.byId('divTabContainer'));
-    tabs.addChild(dtlTab);
-    tabs.addChild(cmntTab);
-    tabs.startup();
-    return tabs;
+    dojo.connect(dojo.byId("tdSubmitedDetails"), "onclick", function () {
+        dojo.byId("tdComments").style.display = "block";
+        dojo.byId("tdSubmitedDetails").style.display = "none";
+        dojo.byId("divCommentsDetails").style.display = "none";
+        dojo.byId("divRequestInfo").style.display = "block";
+    });
 }
 
-//function to create f
+//Create comment container
 function CreateCommetsContainer() {
     var divComments = document.createElement("div");
     divComments.id = "divComments";
     divComments.style.overflow = "hidden";
-
+    dojo.byId("divCommentsDetails").appendChild(divComments);
     var divCommentInput = document.createElement("div");
     divCommentInput.id = "divCommentInput";
+
     var div = document.createElement("div");
     divCommentInput.appendChild(div);
 
     var table = document.createElement("table");
     var tbody = document.createElement("tbody");
+    table.style.paddingLeft = "5px";
     table.style.cursor = "pointer";
     table.style.fontSize = "10px";
     table.onclick = function () { ToggleCommentsView(true); };
@@ -309,6 +299,7 @@ function CreateCommetsContainer() {
 
     var table = document.createElement("table");
     table.style.width = "100%";
+    table.style.paddingLeft = "5px";
     tbody = document.createElement("tbody");
     table.appendChild(tbody);
     tr = document.createElement("tr");
@@ -326,7 +317,7 @@ function CreateCommetsContainer() {
 
     var divCommentsContainer = document.createElement("div");
     divCommentsContainer.id = "divCommentsContainer";
-    divCommentsContainer.style.height = "160px";
+    divCommentsContainer.style.height = (infoPopupHeight - 110) + "px";
     divCommentsContainer.style.width = "100%";
     divCommentsContainer.style.position = 'relative';
 
@@ -334,7 +325,7 @@ function CreateCommetsContainer() {
     divCommentsContent.id = "divCommentsContent";
     divCommentsContent.style.overflow = "hidden";
     divCommentsContent.style.position = "absolute";
-    divCommentsContent.style.height = "160px";
+    divCommentsContent.style.height = (infoPopupHeight - 110) + "px";
 
 
     divCommentsContainer.appendChild(divCommentsContent);
@@ -351,21 +342,31 @@ function CreateCommetsContainer() {
     table.cellpadding = 1;
     table.cellspacing = 2;
     table.style.height = "100%";
-    table.style.marginleft = "5px";
-    table.style.fontSize = "10px";
+    table.style.width = "98%";
+    table.style.paddingLeft = "5px";
 
     tr = document.createElement("tr");
+    var td = document.createElement("td");
+    tr.appendChild(td);
+    var table1 = document.createElement("table");
+    var tbody1 = document.createElement("tbody");
+    var tr1 = document.createElement("tr");
+    td.appendChild(table1);
+    table1.appendChild(tbody1);
+    tbody1.appendChild(tr1);
     td = document.createElement("td");
+    td.style.width = "60px";
     td.innerHTML = "Rating:";
     td1 = document.createElement("td");
     td1.appendChild(CreateRatingControl(false, "commentRating", 0, 5));
-    tr.appendChild(td);
-    tr.appendChild(td1);
+    tr1.appendChild(td);
+    tr1.appendChild(td1);
     tbody.appendChild(tr);
 
     tr = document.createElement("tr");
     td = document.createElement("td");
     td.colSpan = 2;
+    td.style.paddingLeft = "2px";
     td.appendChild(document.createTextNode("Comment:"));
     tr.appendChild(td);
     tbody.appendChild(tr);
@@ -373,7 +374,8 @@ function CreateCommetsContainer() {
     tr = document.createElement("tr");
     td = document.createElement("td");
     td.colSpan = 2;
-    td.appendChild(CreateTextArea("txtComments", "275px", "35px", "txtArea"));
+    td.style.paddingTop = "5px";
+    td.appendChild(CreateTextArea("txtComments", "95%", "100px", "txtArea"));
     tr.appendChild(td);
     tbody.appendChild(tr);
     tr = document.createElement("tr");
@@ -388,66 +390,127 @@ function CreateCommetsContainer() {
     tr.appendChild(td);
     tbody.appendChild(tr);
     tr = document.createElement("tr");
-    td = document.createElement("td");
-    td.colSpan = 2;
-    td.appendChild(CreateCommentAddTable());
-    td.align = "center";
-    tr.appendChild(td);
+    tr.style.height = "25px";
     tbody.appendChild(tr);
+    CreateCommentAddTable(tr, "comment");
+
     divAddComment.appendChild(table);
 
     divComments.appendChild(divCommentInput);
     divComments.appendChild(divCommentData);
     divComments.appendChild(divAddComment);
-    return divComments;
 }
 
-//function to create save and cancel button layout
-function CreateCommentAddTable() {
+//Create dom node for "save and cancel button"
+function CreateCommentAddTable(mainDiv, request, idSubmit, idCancel) {
+    var td = document.createElement("td");
+    td.style.width = "50%";
+    mainDiv.appendChild(td);
+
+    var outerDiv = document.createElement("div");
+    td.appendChild(outerDiv);
+
+    outerDiv.className = "customButton";
+    if (idSubmit) {
+
+        outerDiv.id = idSubmit;
+    }
+    outerDiv.style.width = "75px";
+    td.align = "right";
+
+    var innerDiv = document.createElement("div");
+    innerDiv.className = "customButtonInner";
+
+    outerDiv.appendChild(innerDiv);
+
     var table = document.createElement("table");
+    table.style.width = "100%";
+    table.style.height = "100%";
+
+    innerDiv.appendChild(table);
     var tbody = document.createElement("tbody");
     table.appendChild(tbody);
 
     var tr = document.createElement("tr");
-    var td = document.createElement("td");
-    td.align = "right";
-    var spanSubmit = document.createElement("span");
-    spanSubmit.className = "rounded";
-    spanSubmit.innerHTML = "Submit";
-    spanSubmit.onclick = function () { AddRequestComment(); };
-    td.appendChild(spanSubmit);
-
-    var td1 = document.createElement("td");
-    td1.align = "left";
-    var spanCancel = document.createElement("span");
-    spanCancel.className = "rounded";
-    spanCancel.innerHTML = "Cancel";
-    spanCancel.onclick = function () { ToggleCommentsView(false); };
-    td1.appendChild(spanCancel);
-
-    tr.appendChild(td);
-    tr.appendChild(td1);
     tbody.appendChild(tr);
-    return table;
+    var td = document.createElement("td");
+    td.align = "center";
+    td.verticalAlign = "middle";
+    td.innerHTML = "Submit";
+    td.onclick = function () {
+        if (request == "comment") {
+            AddRequestComment();
+        }
+        else {
+            CreateServiceRequest();
+        }
+    };
+    tr.appendChild(td);
+    var td1 = document.createElement("td");
+    td1.style.width = "50%";
+    mainDiv.appendChild(td1);
+
+    var outerDiv1 = document.createElement("div");
+    td1.appendChild(outerDiv1);
+    outerDiv1.className = "customButton";
+    if (idCancel) {
+        outerDiv1.id = idCancel;
+    }
+    outerDiv1.style.width = "75px";
+    td1.align = "left";
+
+    var innerDiv1 = document.createElement("div");
+    innerDiv1.className = "customButtonInner";
+    innerDiv1.style.width = "75px";
+    outerDiv1.appendChild(innerDiv1);
+
+    var table1 = document.createElement("table");
+    table1.style.width = "100%";
+    table1.style.height = "100%";
+
+    innerDiv1.appendChild(table1);
+    var tbody1 = document.createElement("tbody");
+    table1.appendChild(tbody1);
+
+    var tr1 = document.createElement("tr");
+    tbody1.appendChild(tr1);
+    var td1 = document.createElement("td");
+    td1.align = "center";
+    td1.verticalAlign = "middle";
+    tr1.appendChild(td1);
+    td1.innerHTML = "Cancel";
+    td1.onclick = function () {
+        if (request == "comment") {
+            ToggleCommentsView(false);
+        }
+        else {
+            ResetRequestValues();
+        }
+    };
 }
 
-//function to create servicerequest details
+//Show service request details
 function CreateServiceRequestDetails(attributes) {
     var divDetailsContainer = document.createElement("div");
     divDetailsContainer.id = "divDetailsContainer";
     divDetailsContainer.className = "scrollbar_container";
-    divDetailsContainer.style.height = "200px";
+    divDetailsContainer.style.height = (infoPopupHeight - 40) + "px";
+    dojo.byId("divRequestInfo").appendChild(divDetailsContainer);
+
     var divDeatilsContent = document.createElement("div");
     divDeatilsContent.id = "divDeatilsContent";
     divDeatilsContent.className = "scrollbar_content";
-    divDeatilsContent.style.height = "200px";
+    divDeatilsContent.style.height = (infoPopupHeight - 40) + "px";
     divDetailsContainer.appendChild(divDeatilsContent);
+
     var table = document.createElement("table");
     divDeatilsContent.appendChild(table);
 
     table.cellspacing = 2;
     table.cellpadding = 1;
     table.style.fontSize = "11px";
+    table.style.width = "98%";
+    table.style.paddingLeft = "5px";
     var tbody = document.createElement("tbody");
     table.appendChild(tbody);
 
@@ -460,47 +523,36 @@ function CreateServiceRequestDetails(attributes) {
         if (infoFields[index].DataType == 'description') {
             tr = document.createElement("tr");
             td1 = document.createElement("td");
+            td1.vAlign = "top";
             td1.innerHTML = infoFields[index].DisplayText;
-            td1.style.height = "15px";
-            td1.colSpan = 2;
-
-            var divDescriptionContainer = document.createElement("div");
-            divDescriptionContainer.id = infoFields[index].id + "Container";
-            divDescriptionContainer.style.height = "45px";
-            divDescriptionContainer.style.position = "relative";
-            divDescriptionContainer.style.border = "1px solid #fff";
-
-            var divDescriptionContent = document.createElement("div");
-            divDescriptionContent.id = infoFields[index].id + "Content";
-            divDescriptionContent.style.height = '45px';
-            divDescriptionContent.style.width = '95%';
-            divDescriptionContent.style.position = "absolute";
-            divDescriptionContent.style.overflow = "hidden";
-            divDescriptionContent.className = "wordBreak";
-
+            td1.style.width = "100px";
+            var td2 = document.createElement("td");
+            td2.id = infoFields[index].id + "Content";
+            td2.className = "wordBreak";
             var spanRequestDesription = document.createElement("span");
             spanRequestDesription.id = "spanRequestDesription";
-            spanRequestDesription.style.width = "260px";
+            spanRequestDesription.style.width = "90%";
+            if (dojo.string.substitute(infoFields[index].FieldName, attributes) == "") {
+                spanRequestDesription.innerHTML = showNullValueAs;
+            }
+            else {
 
-
-            spanRequestDesription.innerHTML = dojo.string.substitute(infoFields[index].FieldName, attributes);
-
-            divDescriptionContainer.appendChild(divDescriptionContent);
-            divDescriptionContent.appendChild(spanRequestDesription);
-            td1.appendChild(divDescriptionContainer);
+                spanRequestDesription.innerHTML = dojo.string.substitute(infoFields[index].FieldName, attributes);
+            }
+            td2.appendChild(spanRequestDesription);
             tr.appendChild(td1);
+            tr.appendChild(td2);
             tbody.appendChild(tr);
-            infoWindowDescriptionFields[divDescriptionContainer.id] = divDescriptionContent.id;
+            infoWindowDescriptionFields[td2.id] = td2.id;
         }
         else if (infoFields[index].DataType == 'date') {
             tr = document.createElement("tr");
             td = document.createElement("td");
             td.innerHTML = infoFields[index].DisplayText;
             td.style.height = "15px";
-            td.style.width = '40%';
-
+            td.style.width = '100px';
+            td.vAlign = "top";
             td1 = document.createElement("td");
-            td1.style.width = '40%';
             var spanRequestSubmittedDate = document.createElement("span");
             spanRequestSubmittedDate.id = "spanRequestSubmittedDate";
 
@@ -514,21 +566,31 @@ function CreateServiceRequestDetails(attributes) {
             tr.appendChild(td1);
             tbody.appendChild(tr);
         }
+
         else {
             var tr = document.createElement('tr');
             var td = document.createElement('td');
             td.innerHTML = infoFields[index].DisplayText;
             td.style.height = '15px';
-            td.style.width = '40%';
+            td.style.width = '100px';
+            td.vAlign = "top";
             var td1 = document.createElement('td');
             td1.className = "wordBreak";
+
             if (dojo.string.substitute(infoFields[index].FieldName, attributes) != "") {
                 td1.innerHTML = dojo.string.substitute(infoFields[index].FieldName, attributes);
+                if (infoFields[index].Email) {
+                    td1.style.textDecoration = "underline";
+                    td1.style.cursor = "pointer"
+                    td1.setAttribute("email", dojo.string.substitute(infoFields[index].FieldName, attributes));
+                    td1.onclick = function () {
+                        (this.getAttribute("email") == null) ? "" : window.location = "mailto:" + this.getAttribute("email");
+                    }
+                }
             }
             else {
                 td1.innerHTML = showNullValueAs;
             }
-            td1.style.width = '150px';
             tr.appendChild(td);
             tr.appendChild(td1);
             tbody.appendChild(tr);
@@ -536,27 +598,23 @@ function CreateServiceRequestDetails(attributes) {
     }
     setTimeout(function () {
         CreateScrollbar(divDetailsContainer, divDeatilsContent);
-    }, 1000);
-    return divDetailsContainer;
+    }, 2000);
 }
 
-//function to create scrollbar for comments
+//Create scrollbar for comment container
 function CreateCommentsScrollBar() {
-
-    CreateScrollbar(dojo.byId("commentsContainer"), dojo.byId("commentsContent"));
     CreateScrollbar(dojo.byId("divCommentsContainer"), dojo.byId("divCommentsContent"));
     ToggleCommentsView(false);
 }
 
 
-//Function for toggling comments view
+//Toggle comment view
 function ToggleCommentsView(viewStatus) {
     if (viewStatus) {
         dojo.byId('divAddComment').style.display = 'block';
         dojo.byId('divCommentInput').style.display = 'none';
         dojo.byId('divCommentData').style.display = 'none';
         dojo.byId('txtComments').focus();
-
     }
     else {
         dojo.byId('divAddComment').style.display = 'none';
@@ -566,16 +624,16 @@ function ToggleCommentsView(viewStatus) {
     ResetCommentFields();
 }
 
-//function to reset comments fields
+//Reset comment fields
 function ResetCommentFields() {
     dojo.byId('txtComments').value = '';
     dojo.byId('spanCommentError').style.display = "none";
     SetRating(dojo.byId('commentRating'), 0);
 }
 
-//function to populate Service request types
+//Populate Service request types in drop down
 function PopulateRequestTypes(serviceRequestLayerFields) {
-    var serviceRequestFields
+    var serviceRequestFields;
     for (var i = 0; i < serviceRequestLayerFields.length; i++) {
         if (serviceRequestLayerFields[i].name == serviceRequestLayerInfo.RequestTypeFieldName) {
             serviceRequestFields = serviceRequestLayerFields[i].domain.codedValues;
@@ -590,46 +648,57 @@ function PopulateRequestTypes(serviceRequestLayerFields) {
     serviceRequestStore = new dojo.data.ItemFileReadStore({ data: serviceRequestTypes });
 }
 
-//function to hide the Request service layer
+//Hide Service Request layer
 function ToggleServiceRequestLayer() {
+
     if (map.getLayer(serviceRequestLayerInfo.Key)) {
         map.infoWindow.hide();
-        if (dojo.coords(dojo.byId('divAddressContainer')).h > 0) {
-            WipeOutControl(dojo.byId('divAddressContainer'), 500);
-        }
-        var divNode = dojo.byId('divBaseMapTitleContainer');
-        if (dojo.coords(divNode).h > 0) {
-            WipeOutControl(divNode, 500);
-        }
-
         var serviceRequestLayer = map.getLayer(serviceRequestLayerInfo.Key);
         var query = new esri.tasks.Query();
-        if (!dijit.byId('btnRequest').attr('checked')) {
-            serviceRequestLayer.hide();
-            map.getLayer(tempServiceRequestLayerId).clear();
-            map.setMapCursor('default');
-        }
-        else {
-            ShowLoadingMessage('Populating Service Requests...');
+        if (isSubmitDisabled) {
             query.where = dojo.string.substitute(serviceRequestLayerInfo.WhereQuery, [currentFloor, currentBuilding]);
             serviceRequestLayer.show();
             serviceRequestLayer.selectFeatures(query, esri.layers.FeatureLayer.SELECTION_NEW);
             map.setMapCursor('crosshair');
         }
+        else {
+            serviceRequestLayer.hide();
+            map.getLayer(tempServiceRequestLayerId).clear();
+            map.setMapCursor('default');
+        }
     }
 }
 
-//function to add Service request legend items
-function AddServiceLegendItem(layer) {
-    if (!(dojo.isIE < 9)) {
-        serviceRequestSymbolURL = layer.url + "/images/" + layer.renderer.infos[0].symbol.imageData;
+//enable or disable service request layer
+function enableSubmitRequest() {
+    if (isSubmitDisabled) {
+        isSubmitDisabled = false;
     }
     else {
-        serviceRequestSymbolURL = layer.renderer.infos[0].symbol.url;
+        isSubmitDisabled = true;
     }
+    if (dojo.coords("divAppContainer").h > 0) {
+        dojo.replaceClass("divAppContainer", "hideContainerHeight", "showContainerHeight");
+        dojo.byId('divAppContainer').style.height = '0px';
+    }
+    if (dojo.coords("divLayerContainer").h > 0) {
+        dojo.replaceClass("divLayerContainer", "hideContainerHeight", "showContainerHeight");
+        dojo.byId('divLayerContainer').style.height = '0px';
+        dojo.byId('txtAddress').blur();
+    }
+    if (dojo.coords("divAddressContent").h > 0) {
+        dojo.replaceClass("divAddressContent", "hideContainerHeight", "showContainerHeight");
+        dojo.byId('divAddressContent').style.height = '0px';
+    }
+    ToggleServiceRequestLayer();
 }
 
-//function to reset values
+//add Service request legend items
+function AddServiceLegendItem(layer) {
+    serviceRequestSymbolURL = layer.renderer.infos[0].symbol.url;
+}
+
+//reset Service Request form values
 function ResetRequestValues() {
     map.setMapCursor('crosshair');
     dijit.byId('cbRequestType').setValue("");
@@ -638,42 +707,41 @@ function ResetRequestValues() {
     dojo.byId('txtMail').value = "";
     dojo.byId('txtPhone').value = "";
     dojo.byId('spanServiceErrorMessage').innerHTML = "";
-    dijit.byId('detailsContainer').selectChild(dijit.byId('detailsContentPane'));
 }
 
-//function to validate request type
+//validate request type
 function ValidateRequestType() {
     if (!dijit.byId('cbRequestType').item) {
         dijit.byId('cbRequestType').setValue("");
     }
 }
 
-//function to create service request
+//update the new service request form details to the server
 function CreateServiceRequest() {
     if (map.getLayer(tempServiceRequestLayerId).graphics.length == 0) {
         ShowSpanErrorMessage("spanServiceErrorMessage", messages.getElementsByTagName("selectLocation")[0].childNodes[0].nodeValue);
         return false;
     }
     if (ValidateRequestData()) {
-        ShowLoadingMessage("Creating Service Request...");
+
+        ShowLoadingMessage();
         var mapPoint = map.getLayer(tempServiceRequestLayerId).graphics[0].geometry;
         mapPoint.spatialReference = map.spatialReference;
         var date = new js.date();
         var serviceRequestAttributes = {
-            "REQUESTTYPE": dijit.byId("cbRequestType").getValue(),
-            "COMMENTS": dojo.byId('txtDescription').value.trim(),
-            "NAME": dojo.byId('txtName').value.trim(),
-            "PHONE": dojo.byId('txtPhone').value.trim(),
-            "EMAIL": dojo.byId('txtMail').value.trim(),
-            "STATUS": "Unassigned",
-            "REQUESTDATE": date.utcMsFromTimestamp(date.localToUtc(date.localTimestampNow())),
-            "BUILDING": currentBuilding,
-            "FLOOR": currentFloor
+            "requesttype": dijit.byId("cbRequestType").getValue(),
+            "comments": dojo.byId('txtDescription').value.trim(),
+            "name": dojo.byId('txtName').value.trim(),
+            "phone": dojo.byId('txtPhone').value.trim(),
+            "email": dojo.byId('txtMail').value.trim(),
+            "status": "Unassigned",
+            "requestdate": date.utcMsFromTimestamp(date.localToUtc(date.localTimestampNow())),
+            "building": currentBuilding,
+            "floor": currentFloor
         };
-
         if (outsideServiceRequest) {
-            serviceRequestAttributes.BUILDING = outsideBuilding;
-            serviceRequestAttributes.FLOOR = 1;
+            serviceRequestAttributes.building = outsideBuilding;
+            serviceRequestAttributes.floor = 1;
             currentFloor = 1;
         }
 
@@ -681,21 +749,23 @@ function CreateServiceRequest() {
         map.getLayer(serviceRequestLayerInfo.Key).applyEdits([serviceRequestGraphic], null, null, function (addResults) {
             if (addResults[0].success) {
                 var objectIdField = map.getLayer(serviceRequestLayerInfo.Key).objectIdField;
-                var requestID = { "REQUESTID": String(addResults[0].objectId) };
+                var requestID = { "requestid": String(addResults[0].objectId) };
                 requestID[objectIdField] = addResults[0].objectId;
                 var requestGraphic = new esri.Graphic(mapPoint, null, requestID, null);
                 map.getLayer(serviceRequestLayerInfo.Key).applyEdits(null, [requestGraphic], null, function () {
-                    serviceRequestGraphic.attributes["REQUESTID"] = String(addResults[0].objectId);
+                    serviceRequestGraphic.attributes["requestid"] = String(addResults[0].objectId);
                     HideLoadingMessage();
                     map.infoWindow.hide();
+                    selectedGraphics = null;
                     ToggleServiceRequestLayer();
                     if (outsideServiceRequest) {
                         InitializeSpinner(arrBuilding[currentBuilding], 1);
                         CreateFloorSwitcher(arrBuilding, currentBuilding, 1);
-                        LocateBuildingFloors(arrBuilding[currentBuilding], 1);
+                        LocateBuildingFloors(arrBuilding[currentBuilding], 1, true);
                     }
 
-                    ShowDialog(messages.getElementsByTagName("serviceReqtId")[0].childNodes[0].nodeValue + serviceRequestGraphic.attributes["REQUESTID"], messages.getElementsByTagName("serviceReqtId")[0].childNodes[0].nodeValue + serviceRequestGraphic.attributes["REQUESTID"] + messages.getElementsByTagName("serviceReqIdSuccess")[0].childNodes[0].nodeValue);
+                    alert(messages.getElementsByTagName("serviceReqtId")[0].childNodes[0].nodeValue + serviceRequestGraphic.attributes["requestid"] + messages.getElementsByTagName("serviceReqIdSuccess")[0].childNodes[0].nodeValue);
+
                 }, function (err) {
                     ResetRequestValues();
                     HideLoadingMessage();
@@ -709,17 +779,8 @@ function CreateServiceRequest() {
         });
     }
 }
-//function to show infowindow with service request number
-function ShowServiceRequestID(mapPoint, objectID) {
-    map.infoWindow.setTitle("Service Request");
-    var spanServiceRequestNumber = document.createElement("span");
-    spanServiceRequestNumber.innerHTML = "Service Request Id : " + objectID;
-    map.infoWindow.setContent(spanServiceRequestNumber);
-    var windowPoint = map.toScreen(mapPoint);
-    map.infoWindow.resize(250, 300);
-    map.infoWindow.show(mapPoint, GetInfoWindowAnchor(windowPoint, 250));
-}
 
+//validate input data for service request form
 function ValidateRequestData() {
     if (dijit.byId("cbRequestType").getValue() == "") {
         ShowSpanErrorMessage("spanServiceErrorMessage", messages.getElementsByTagName("spanErrorMsgType")[0].childNodes[0].nodeValue);
@@ -731,7 +792,7 @@ function ValidateRequestData() {
         return false;
     }
 
-    if (dojo.byId('txtName').value.trim() != 0) {
+    if (dojo.byId('txtName').value.trim() != 0) {//validate name field
         if (dojo.byId('txtName').value.trim().length > 50) {
             dojo.byId('txtName').focus();
             ShowErrorMessage('spanServiceErrorMessage', messages.getElementsByTagName("exceededName")[0].childNodes[0].nodeValue);
@@ -768,11 +829,11 @@ function ValidateRequestData() {
         }
         if (dojo.byId('txtPhone').value.trim().length != 10) {
             dojo.byId('txtPhone').focus();
-            ShowSpanErrorMessage("spanServiceErrorMessage", messages.getElementsByTagName("spanErrorMsgDigitPhone")[0].childNodes[0].nodeValue);
+            ShowSpanErrorMessage("spanServiceErrorMessage", messages.getElementsByTagName("spanErrorMsgValidPhone")[0].childNodes[0].nodeValue);
             return false;
         }
     }
-    if (dojo.byId('txtMail').value.trim().length > 0) {
+    if (dojo.byId('txtMail').value.trim().length > 0) {//validate email field
         if (!CheckMailFormat(dojo.byId('txtMail').value.trim())) {
             dojo.byId('txtMail').focus();
             ShowSpanErrorMessage("spanServiceErrorMessage", messages.getElementsByTagName("spanErrorMsgValidEmail")[0].childNodes[0].nodeValue);
@@ -784,7 +845,7 @@ function ValidateRequestData() {
             return;
         }
     }
-    if (dojo.byId('txtPhone').value.trim().length > 0) {
+    if (dojo.byId('txtPhone').value.trim().length > 0) {//validate phone number
         if (!IsPhoneNumber(dojo.byId('txtPhone').value.trim())) {
             dojo.byId('txtPhone').focus();
             ShowSpanErrorMessage("spanServiceErrorMessage", messages.getElementsByTagName("spanErrorMsgValidPhone")[0].childNodes[0].nodeValue);
@@ -792,7 +853,7 @@ function ValidateRequestData() {
         }
         if (dojo.byId('txtPhone').value.trim().length != 10) {
             dojo.byId('txtPhone').focus();
-            ShowSpanErrorMessage("spanServiceErrorMessage", messages.getElementsByTagName("spanErrorMsgDigitPhone")[0].childNodes[0].nodeValue);
+            ShowSpanErrorMessage("spanServiceErrorMessage", messages.getElementsByTagName("spanErrorMsgValidPhone")[0].childNodes[0].nodeValue);
             return false;
         }
     }
