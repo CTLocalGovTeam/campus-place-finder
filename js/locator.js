@@ -1,19 +1,19 @@
 ﻿/** @license
-| Version 10.1.1
-| Copyright 2012 Esri
-|
-| Licensed under the Apache License, Version 2.0 (the "License");
-| you may not use this file except in compliance with the License.
-| You may obtain a copy of the License at
-|
-|    http://www.apache.org/licenses/LICENSE-2.0
-|
-| Unless required by applicable law or agreed to in writing, software
-| distributed under the License is distributed on an "AS IS" BASIS,
-| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-| See the License for the specific language governing permissions and
-| limitations under the License.
-*/
+ | Version 10.1.1
+ | Copyright 2012 Esri
+ |
+ | Licensed under the Apache License, Version 2.0 (the "License");
+ | you may not use this file except in compliance with the License.
+ | You may obtain a copy of the License at
+ |
+ |    http://www.apache.org/licenses/LICENSE-2.0
+ |
+ | Unless required by applicable law or agreed to in writing, software
+ | distributed under the License is distributed on an "AS IS" BASIS,
+ | WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ | See the License for the specific language governing permissions and
+ | limitations under the License.
+ */
 var mapPoint;                   //Variable for storing map point location
 var buildingCount;              //Variable for storing total building count
 
@@ -160,7 +160,7 @@ function HideAddressContainer() {
     dojo.byId('divAddressContent').style.height = '0px';
 }
 
-//fetch the details of queried person 
+//fetch the details of queried person
 function QueryRelatedRecords(feature) {
     var relationQuery = new esri.tasks.RelationshipQuery();
     relationQuery.objectIds = [dojo.string.substitute(operationalLayersCollection[0].ObjectID, feature.attributes)];
@@ -190,7 +190,7 @@ function QueryRelatedRecords(feature) {
     });
 }
 
-//fetch details of searched place 
+//fetch details of searched place
 function GroupPlacesBySpaceType(featureSet) {
     var features = featureSet.features;
     arrPlacesBySpaceType = [];
@@ -454,8 +454,8 @@ function ShowSpaceFeature(feature, layerInfo) {
                     ServiceRequestInfo(feature.attributes, title, dojo.byId("divPersonDetails"), windowPoint);
                 }
                 else {
-                    ShowInfoWindow(windowPoint, title, dojo.byId('divDetailsInfo'), dojo.byId("detailsInfoTitle"));                   
-                    HideLoadingMessage();                   
+                    ShowInfoWindow(windowPoint, title, dojo.byId('divDetailsInfo'), dojo.byId("detailsInfoTitle"));
+                    HideLoadingMessage();
                 }
             }
         }, 1000);
@@ -561,7 +561,7 @@ function OnloadFloors(building,floor) {
     else {
         onLoadBuilding = defaultBuilding;
         onLoadFloor = defaultFloor;
-        var shareEnable = "false";    
+        var shareEnable = "false";
     }
 
     //query plain layer for floor of building to fetch the geometry coordinates
@@ -619,7 +619,7 @@ function OnloadFloors(building,floor) {
             });
 }
 
-// function used to create tab container to submit service request 
+// function used to create tab container to submit service request
 function CreateSubmitServiceRequestTabContainer(evt, searchContent) {
     var floorLayer = map.getLayer(queryGraphicLayer);
     dojo.byId('divCreateRequestContainer').style.display = "block";
@@ -637,7 +637,7 @@ function CreateSubmitServiceRequestTabContainer(evt, searchContent) {
             dojo.byId("divSubmitFormInfo").style.display = "none";
             dojo.byId("divSubmitDetails").style.display = "block";
         });
-  
+
     dojo.byId("tdSubmitForm").onclick = function () {
         ShowSubmitRequestForm();
         dojo.byId("tdDetails").style.display = "block";
@@ -647,7 +647,7 @@ function CreateSubmitServiceRequestTabContainer(evt, searchContent) {
     };
 }
 
-//create form to submit service request  
+//create form to submit service request
 function ShowSubmitRequestForm() {
     var divSubmitRequestContainer = document.createElement('div');
     divSubmitRequestContainer.id = 'divSubmitRequestContainer';
@@ -657,7 +657,7 @@ function ShowSubmitRequestForm() {
     var divSubmitRequest = CreateServiceRequestForm();
     divSubmitRequest.className = 'divServiceRequestDetails';
     divSubmitRequest.style.height = (infoPopupHeight - 110) + "px";
-    divSubmitRequestContainer.appendChild(divSubmitRequest); 
+    divSubmitRequestContainer.appendChild(divSubmitRequest);
 
     var div1 = document.createElement('div');
     div1.style.width = "100%";
@@ -742,7 +742,9 @@ function CreateServiceRequestForm() {
         }
 
     }, cbRequestType);
-
+    dojo.connect(dojo.byId("widget_cbRequestType_dropdown"), "onmouseout", function () {
+        dojo.query(".dijitMenuItemSelected").removeClass("dijitMenuItemSelected");
+    });
     tr1.appendChild(td11);
     tr1.appendChild(td12);
     tbodyServiceRequestDetails.appendChild(tr1);
@@ -816,7 +818,7 @@ function CreateServiceRequestForm() {
     return divServiceRequestDetails;
 }
 
-//show picture marker symbol 
+//show picture marker symbol
 function ServiceRequestInfo(evt, title, searchContent, windowPoint) {
     var symbol = '';
     var graphic = '';
@@ -1102,7 +1104,7 @@ function ShowInfoWindow(windowPoint, title, detailsContainer, headerContainer) {
     }, 500);
 }
 
-//get extent based on map point 
+//get extent based on map point
 function GetBrowserMapExtent(mapPoint) {
     var width = map.extent.getWidth();
     var height = map.extent.getHeight();
@@ -1112,4 +1114,3 @@ function GetBrowserMapExtent(mapPoint) {
     var ymax = ymin + height;
     return new esri.geometry.Extent(xmin, ymin, xmax, ymax, map.spatialReference);
 }
-

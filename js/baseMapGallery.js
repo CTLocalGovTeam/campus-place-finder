@@ -1,19 +1,19 @@
 ﻿/** @license
-| Version 10.1.1
-| Copyright 2012 Esri
-|
-| Licensed under the Apache License, Version 2.0 (the "License");
-| you may not use this file except in compliance with the License.
-| You may obtain a copy of the License at
-|
-|    http://www.apache.org/licenses/LICENSE-2.0
-|
-| Unless required by applicable law or agreed to in writing, software
-| distributed under the License is distributed on an "AS IS" BASIS,
-| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-| See the License for the specific language governing permissions and
-| limitations under the License.
-*/
+ | Version 10.1.1
+ | Copyright 2012 Esri
+ |
+ | Licensed under the Apache License, Version 2.0 (the "License");
+ | you may not use this file except in compliance with the License.
+ | You may obtain a copy of the License at
+ |
+ |    http://www.apache.org/licenses/LICENSE-2.0
+ |
+ | Unless required by applicable law or agreed to in writing, software
+ | distributed under the License is distributed on an "AS IS" BASIS,
+ | WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ | See the License for the specific language governing permissions and
+ | limitations under the License.
+ */
 //Create basemap components
 function CreateBaseMapComponent() {
     for (var i = 0; i < baseMapLayers.length; i++) {
@@ -128,7 +128,7 @@ function ShowBaseMaps() {
         accHeight = dojo.coords("divAccordion").h;
         dojo.replaceClass("divExpress", "hideContainerHeight", "showContainerHeight");
         dojo.byId('divExpress').style.height = '0px';
-        dojo.replaceClass("divAccordion", "hideContainerHeight", "showContainerHeight");     
+        dojo.replaceClass("divAccordion", "hideContainerHeight", "showContainerHeight");
         dojo.byId('divAccordion').style.height = '0px';
     }
     var cellHeight = 115;
@@ -137,9 +137,15 @@ function ShowBaseMaps() {
         dojo.byId('divLayerContainer').style.height = '0px';
     }
     else {
-        dojo.byId('divLayerContainer').style.height = Math.ceil(baseMapLayers.length / 2) * cellHeight + "px";
+        dojo.byId('divLayerContainer').style.height = cellHeight + "px";
+        dojo.byId('divLayerContentHolder').style.height = (cellHeight - 15) + "px";
+        dojo.byId('divLayerContentHolder').style.top = "0px";
         dojo.replaceClass("divLayerContainer", "showContainerHeight", "hideContainerHeight");
     }
+
+    setTimeout(function () {
+            CreateScrollbar(dojo.byId("divLayerHolder"), dojo.byId("divLayerContentHolder"));
+    }, 500);
 }
 
 //Add feature layer to map when map is loaded

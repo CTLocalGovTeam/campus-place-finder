@@ -564,15 +564,15 @@ body, html
     }
     .dijitInputContainer,.dijitInputInner
     {
-      height: 20px !important;  
+      height: 20px !important;
         }
-        
+
  .dijitTextBox,.dijitInputContainer,.dijitButtonNode
 {
       -moz-border-radius: 3px;
     -webkit-border-radius: 3px;
-    border-radius: 3px;  
-    
+    border-radius: 3px;
+
     }
 .dijitReset .dijitInputField .dijitArrowButtonInner
  {
@@ -587,7 +587,7 @@ body, html
     color: #fff !important;
     font-family: verdana !important;
     font-size: 11px;
-  
+
 }
 .dijitTextBox
 {
@@ -614,7 +614,7 @@ body, html
 .claro .dijitComboBoxMenuActive .dijitMenuItemSelected
 {
     background-position: 0px -177px;
-    background-color: red !important;
+    background-color: #333333 !important;
     color: #fff !important;
 }
 
@@ -634,14 +634,10 @@ body, html
     white-space: -o-pre-wrap;
     word-wrap: break-word;
 }
-.dijitMenuItem
-{
-   background-image:url("") !important;
-    }
-    .dijitMenuItemHover
-    { 
-       background-color: RGB(88, 88, 88) !important;
-       }
+.dijitMenuItemHover
+ {
+    background-color: RGB(88, 88, 88) !important;
+ }
 
 .rounded
 {
@@ -834,11 +830,11 @@ span.rounded:hover
 
 .txtArea,.txtBox
 {
-    border: none !important; 
+    border: none !important;
     outline:none;
     padding:0px !important;
     margin-left:4px;
-    vertical-align:middle;  
+    vertical-align:middle;
     background-color: #333333;
     color: #fff;
     font-family: Verdana !important;
@@ -853,12 +849,12 @@ span.rounded:hover
 
 .txtArea
 {
- 
+
    resize: none !important;
-   height: 50px;  
+   height: 50px;
 
 }
-    
+
 .txtBox
  {
       height: 25px;
@@ -961,13 +957,13 @@ span.rounded:hover
     border-bottom-left-radius: 5px;
     text-align: center;
     cursor: default;
-    background-color: #333333;
-    width: 70px;
+    background-color: #AAAAAA;
+    width: 90px;
 }
 
 .tdSearchByPlace
 {
-    width: 70px;
+    width: 90px;
     margin-left: 10px;
     margin-right: 10px;
     height: 25px;
@@ -979,7 +975,7 @@ span.rounded:hover
     border-bottom-right-radius: 5px;
     text-align: center;
     cursor: default;
-    background-color: #333333;
+    background-color: #AAAAAA;
 }
 .imgLocate
 {
@@ -1083,7 +1079,7 @@ span.rounded:hover
     margin-right: 10px;
     height: 25px;
     text-align: center;
-    background: rgb(76,76,76); /* Old browsers */
+    background: #202020; /* Old browsers */
     -moz-border-top-left-radius: 5px;
     -webkit-border-top-left-radius: 5px;
     border-top-left-radius: 5px;
@@ -1091,7 +1087,7 @@ span.rounded:hover
     -webkit-border-bottom-left-radius: 5px;
     border-bottom-left-radius: 5px;
     cursor: pointer;
-    width: 70px;
+    width: 90px;
 }
 
 .tdSearchByUnPlace
@@ -1100,7 +1096,7 @@ span.rounded:hover
     margin-right: 10px;
     height: 25px;
     text-align: center;
-    background: rgb(76,76,76); /* Old browsers */
+    background: #202020; /* Old browsers */
     -moz-border-top-right-radius: 5px;
     -webkit-border-top-right-radius: 5px;
     border-top-right-radius: 5px;
@@ -1108,7 +1104,7 @@ span.rounded:hover
     -webkit-border-bottom-right-radius: 5px;
     border-bottom-right-radius: 5px;
     cursor: pointer;
-    width: 70px;
+    width: 90px;
 }
 
 /*--------------------------------------------------------------------------------------------------------------------------------------------------------------------*/

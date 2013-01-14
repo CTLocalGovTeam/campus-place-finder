@@ -1,7 +1,7 @@
 ﻿<!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
-   <meta charset=utf-8>
+    <meta charset="utf-8">
     <!--
      | Version 10.1.1
      | Copyright 2012 Esri
@@ -18,13 +18,13 @@
      | See the License for the specific language governing permissions and
      | limitations under the License.
     -->
-    <title>Campus Building Viewer</title>
+    <title></title>
     <link rel="shortcut icon" href="images/Favi.ico" />
     <link rel="Stylesheet" type="text/css" href="campusBuildingViewer.css" />
     <link rel="stylesheet" type="text/css" href="http://serverapi.arcgisonline.com/jsapi/arcgis/3.2/js/esri/css/esri.css" />
     <link rel="Stylesheet" type="text/css" href="http://serverapi.arcgisonline.com/jsapi/arcgis/3.2/js/dojo/dijit/themes/claro/claro.css" />
     <script type="text/javascript">
-             var dojoConfig = {
+        var dojoConfig = {
             async: false,
             parseOnLoad: true,
             mblHideAddressBar: false,
@@ -273,8 +273,11 @@
     </div>
     <div id="divLayerContainer" class="divLayerContainer hideContainerHeight">
         <div id="divLayerHolder" class="divLayerHolder">
-            <div id="divLayerContentHolder" class="divLayerContentHolder">
-                <div id="layerList">
+            <div id="divLayerContainerHolder" style="position: relative">
+                <div id="divLayerContentHolder" class="divLayerContentHolder" style="position: absolute;
+                    overflow: hidden">
+                    <div id="layerList">
+                    </div>
                 </div>
             </div>
         </div>
