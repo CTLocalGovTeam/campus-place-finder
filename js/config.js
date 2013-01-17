@@ -1,19 +1,19 @@
 ﻿/** @license
- | Version 10.1.1
- | Copyright 2012 Esri
- |
- | Licensed under the Apache License, Version 2.0 (the "License");
- | you may not use this file except in compliance with the License.
- | You may obtain a copy of the License at
- |
- |    http://www.apache.org/licenses/LICENSE-2.0
- |
- | Unless required by applicable law or agreed to in writing, software
- | distributed under the License is distributed on an "AS IS" BASIS,
- | WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- | See the License for the specific language governing permissions and
- | limitations under the License.
- */
+| Version 10.1.1
+| Copyright 2012 Esri
+|
+| Licensed under the Apache License, Version 2.0 (the "License");
+| you may not use this file except in compliance with the License.
+| You may obtain a copy of the License at
+|
+|    http://www.apache.org/licenses/LICENSE-2.0
+|
+| Unless required by applicable law or agreed to in writing, software
+| distributed under the License is distributed on an "AS IS" BASIS,
+| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+| See the License for the specific language governing permissions and
+| limitations under the License.
+*/
 dojo.provide("js.config");
 dojo.declare("js.config", null, {
 
@@ -70,7 +70,7 @@ dojo.declare("js.config", null, {
     GeometryService: "http://localgovtemplates2.esri.com/ArcGIS/rest/services/Geometry/GeometryServer",
 
     // Url for querying total buildings and floors
-    QueryURL: "http://203.199.47.153:6080/arcgis/rest/services/CampusPlaceFinder/BuildingInterior/MapServer/0",
+    QueryURL: "http://arcgis-localgov-61933129.us-west-1.elb.amazonaws.com/arcgis/rest/services/CampusPlaceFinder/BuildingInterior/MapServer/0",
 
     // ------------------------------------------------------------------------------------------------------------------------
     // BASEMAP SETTINGS
@@ -87,7 +87,7 @@ dojo.declare("js.config", null, {
             MapURL: "http://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer"
         }, {
             LayerId: "campusMap",
-            MapURL: "http://megacity.esri.com/ArcGIS/rest/services/CampusViewer/Campus_Viewer_Basemap_v5/MapServer"
+            MapURL: "http://arcgis-tenone2012-1974758903.us-west-1.elb.amazonaws.com/arcgis/rest/services/Campus/MapServer"
         }]
     }, {
         Key: "worldImageryMap",
@@ -108,19 +108,19 @@ dojo.declare("js.config", null, {
         isEnabled: true,
         LayerInfo: {
             Key: "srFloor0",
-            ServiceURL: "http://203.199.47.146/arcgis/rest/services/ServiceRequest/ServiceRequestCPF/FeatureServer/0",
-            WhereQuery: "floor = '${0}' AND status = 'Unassigned' AND (building = '${1}' or building = 'outside')",
+            ServiceURL: "http://arcgis-localgov-61933129.us-west-1.elb.amazonaws.com/arcgis/rest/services/CampusPlaceFinder/ServiceRequestCA/FeatureServer/0",
+            WhereQuery: "FLOOR = '${0}' AND STATUS = 'Unassigned' AND (BUILDING = '${1}' or BUILDING = 'outside')",
             OutFields: "*",
-            ShareFields: "${requestid}",
-            ShareQuery: "objectid = '${0}'",
-            RequestTypeFieldName: "requesttype",
-            CommentsLayerURL: "http://203.199.47.146/arcgis/rest/services/ServiceRequest/ServiceRequestCPF/FeatureServer/4",
+            ShareFields: "${REQUESTID}",
+            ShareQuery: "OBJECTID = '${0}'",
+            RequestTypeFieldName: "REQUESTTYPE",
+            CommentsLayerURL: "http://arcgis-localgov-61933129.us-west-1.elb.amazonaws.com/arcgis/rest/services/CampusPlaceFinder/ServiceRequestCA/FeatureServer/4",
             CommentsOutFields: "*",
-            BuildingFloorPlan: "http://203.199.47.146/arcgis/rest/services/CampusPlaceFinder/BuildingInterior/MapServer/2",
+            BuildingFloorPlan: "http://arcgis-localgov-61933129.us-west-1.elb.amazonaws.com/arcgis/rest/services/CampusPlaceFinder/BuildingInterior/MapServer/2",
             BuildingAttribute: "BUILDINGKEY",
             BuildingKey: "${BUILDINGKEY}",
-            Building: "${building}",
-            Floor: "${floor}"
+            Building: "${BUILDING}",
+            Floor: "${FLOOR}"
         },
 
         // ------------------------------------------------------------------------------------------------------------------------
@@ -130,33 +130,33 @@ dojo.declare("js.config", null, {
         // Set the content to be displayed on the info-Popup. Define labels, field values, field types and field formats
         InfoPopupFieldsCollection: [{
             DisplayText: "Name:",
-            FieldName: "${name}",
+            FieldName: "${NAME}",
             HideCondition: true
         }, {
             DisplayText: "Phone:",
-            FieldName: "${phone}",
+            FieldName: "${PHONE}",
             HideCondition: true
         }, {
             DisplayText: "Email:",
             Email: true,
-            FieldName: "${email}",
+            FieldName: "${EMAIL}",
             HideCondition: true
         }, {
             DisplayText: "Place:",
-            FieldName: "${building}-${floor}",
+            FieldName: "${BUILDING}-${FLOOR}",
             DataType: "string"
         }, {
             DisplayText: "Type:",
-            FieldName: "${requesttype}",
+            FieldName: "${REQUESTTYPE}",
             DataType: "string"
         }, {
             DisplayText: "Description:",
-            FieldName: "${comments}",
+            FieldName: "${COMMENTS}",
             DataType: "description",
             id: "comments"
         }, {
             DisplayText: "Date Submitted:",
-            FieldName: "${requestdate}",
+            FieldName: "${REQUESTDATE}",
             DataType: "date",
             FormatDateAs: "MMM dd, yyyy"
         }]
@@ -170,7 +170,7 @@ dojo.declare("js.config", null, {
     OperationalLayers: [{
         Name: "Building Interior Spaces Type",
         Key: "BuildingInteriorSpacesType",
-        MapURL: "http://203.199.47.153:6080/arcgis/rest/services/CampusPlaceFinder/BuildingInterior/MapServer/1",
+        MapURL: "http://arcgis-localgov-61933129.us-west-1.elb.amazonaws.com/arcgis/rest/services/CampusPlaceFinder/BuildingInterior/MapServer/1",
         DateFields: [{
             DisplayField: "Last Update Date",
             ValueField: "LASTUPDATE",
@@ -214,7 +214,7 @@ dojo.declare("js.config", null, {
     }, {
         Name: "Building Floorplan Lines",
         Key: "BuildingFloorplanLines",
-        MapURL: "http://203.199.47.153:6080/arcgis/rest/services/CampusPlaceFinder/BuildingInterior/MapServer/0",
+        MapURL: "http://arcgis-localgov-61933129.us-west-1.elb.amazonaws.com/arcgis/rest/services/CampusPlaceFinder/BuildingInterior/MapServer/0",
         isLayerVisible: true,
         WhereQuery: "BUILDINGKEY = '${0}' AND FLOOR = '${1}'"
     }],
@@ -224,7 +224,7 @@ dojo.declare("js.config", null, {
     // ------------------------------------------------------------------------------------------------------------------------
     PlaceLayer: {
         Key: "PlaceLayer",
-        QueryURL: "http://203.199.47.153:6080/arcgis/rest/services/CampusPlaceFinder/BuildingInterior/MapServer/1",
+        QueryURL: "http://arcgis-localgov-61933129.us-west-1.elb.amazonaws.com/arcgis/rest/services/CampusPlaceFinder/BuildingInterior/MapServer/1",
         OutFields: "*",
         QueryFields: "BUILDING,FLOOR,SPACEID",
         SpaceType: "${SPACETYPE}",
@@ -272,7 +272,7 @@ dojo.declare("js.config", null, {
     // ------------------------------------------------------------------------------------------------------------------------
     PersonLayer: {
         Key: "PersonLayer",
-        QueryURL: "http://203.199.47.153:6080/arcgis/rest/services/CampusPlaceFinder/BuildingInterior/MapServer/4",
+        QueryURL: "http://arcgis-localgov-61933129.us-west-1.elb.amazonaws.com/arcgis/rest/services/CampusPlaceFinder/BuildingInterior/MapServer/4",
         OutFields: "OBJECTID,FIRSTNAME,LASTNAME,EMAIL,EXTENSION,BUILDING,FLOOR,WING",
         QueryFields: "FIRSTNAME,LASTNAME",
         WhereQuery: "LOCATION = '${SPACEID}'",
@@ -353,10 +353,10 @@ dojo.declare("js.config", null, {
 
     //Set info-pop fields for adding and displaying comment for existing service request
     CommentsInfoPopupFieldsCollection: {
-        Rank: "${rank}",
-        RequestId: "${requestid}",
-        SubmitDate: "${submitdt}",
-        Comments: "${comments}"
+        Rank: "${RANK}",
+        RequestId: "${REQUESTID}",
+        SubmitDate: "${SUBMITDT}",
+        Comments: "${COMMENTS}"
     },
 
     // ------------------------------------------------------------------------------------------------------------------------

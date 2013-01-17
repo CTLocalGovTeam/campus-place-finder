@@ -1,19 +1,19 @@
 ﻿/** @license
-| Version 10.1.1
-| Copyright 2012 Esri
-|
-| Licensed under the Apache License, Version 2.0 (the "License");
-| you may not use this file except in compliance with the License.
-| You may obtain a copy of the License at
-|
-|    http://www.apache.org/licenses/LICENSE-2.0
-|
-| Unless required by applicable law or agreed to in writing, software
-| distributed under the License is distributed on an "AS IS" BASIS,
-| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-| See the License for the specific language governing permissions and
-| limitations under the License.
-*/
+ | Version 10.1.1
+ | Copyright 2012 Esri
+ |
+ | Licensed under the Apache License, Version 2.0 (the "License");
+ | you may not use this file except in compliance with the License.
+ | You may obtain a copy of the License at
+ |
+ |    http://www.apache.org/licenses/LICENSE-2.0
+ |
+ | Unless required by applicable law or agreed to in writing, software
+ | distributed under the License is distributed on an "AS IS" BASIS,
+ | WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ | See the License for the specific language governing permissions and
+ | limitations under the License.
+ */
 var serviceRequestStore = '';      //Variable for storing service request types.
 var reqId;
 
@@ -78,11 +78,11 @@ function ShowServiceRequestDetails(mapPoint, attributes) {
     ToggleCommentsView(false);
 }
 
-//fetch comments for service request 
+//fetch comments for service request
 function FetchRequestComments(requestID, attributes, mapPoint) {
     ShowDojoLoading(dojo.byId("divComments"));
     var query = new esri.tasks.Query();
-    query.where = "requestid = '" + requestID + "'";
+    query.where = "REQUESTID = '" + requestID + "'";
     query.outFields = ["*"];
     for (var layerInfo in serviceRequestLayerInfo) {
         //execute query
@@ -182,10 +182,10 @@ function AddRequestComment() {
     var commentGraphic = new esri.Graphic();
     var date = new js.date();
     var attr = {
-        "requestid": reqId,
-        "comments": text,
-        "submitdt": date.utcMsFromTimestamp(date.localToUtc(date.localTimestampNow())),
-        "rank": Number(dojo.byId('commentRating').value)
+        "REQUESTID": reqId,
+        "COMMENTS": text,
+        "SUBMITDT": date.utcMsFromTimestamp(date.localToUtc(date.localTimestampNow())),
+        "RANK": Number(dojo.byId('commentRating').value)
     };
     commentGraphic.setAttributes(attr);
 
@@ -206,14 +206,14 @@ function AddRequestComment() {
                     commentsCell.appendChild(CreateCommentRecord(attr, index));
                     tr.appendChild(commentsCell);
                     CreateRatingWidget(dojo.byId('commentRating' + index));
-                    SetRating(dojo.byId('commentRating' + index), attr.rank);
+                    SetRating(dojo.byId('commentRating' + index), attr.RANK);
                     var query = new esri.tasks.Query();
                     var relationshipId;
                     commentsInfoPopupFieldsCollection.RequestId.replace(/\$\{([^\s\:\}]+)(?:\:([^\s\:\}]+))?\}/g, function (match, key) {
                         relationshipId = key;
                     });
 
-                    query.where = relationshipId + " = '" + attr.requestid + "'";
+                    query.where = relationshipId + " = '" + attr.REQUESTID + "'";
                     query.outFields = ["*"];
                     map.getLayer(serviceRequestLayerInfo.Key + "Comments").selectFeatures(query, esri.layers.FeatureLayer.SELECTION_NEW, function (features) {
                         dojo.byId('spanCommentsCount').innerHTML = features.length;
@@ -635,7 +635,7 @@ function ResetCommentFields() {
 function PopulateRequestTypes(serviceRequestLayerFields) {
     var serviceRequestFields;
     for (var i = 0; i < serviceRequestLayerFields.length; i++) {
-        if (serviceRequestLayerFields[i].name == serviceRequestLayerInfo.RequestTypeFieldName) {
+        if (serviceRequestLayerFields[i].name.toLowerCase() == serviceRequestLayerInfo.RequestTypeFieldName.toLowerCase()) {
             serviceRequestFields = serviceRequestLayerFields[i].domain.codedValues;
             break;
         }
@@ -729,15 +729,15 @@ function CreateServiceRequest() {
         mapPoint.spatialReference = map.spatialReference;
         var date = new js.date();
         var serviceRequestAttributes = {
-            "requesttype": dijit.byId("cbRequestType").getValue(),
-            "comments": dojo.byId('txtDescription').value.trim(),
-            "name": dojo.byId('txtName').value.trim(),
-            "phone": dojo.byId('txtPhone').value.trim(),
-            "email": dojo.byId('txtMail').value.trim(),
-            "status": "Unassigned",
-            "requestdate": date.utcMsFromTimestamp(date.localToUtc(date.localTimestampNow())),
-            "building": currentBuilding,
-            "floor": currentFloor
+            "REQUESTTYPE": dijit.byId("cbRequestType").getValue(),
+            "COMMENTS": dojo.byId('txtDescription').value.trim(),
+            "NAME": dojo.byId('txtName').value.trim(),
+            "PHONE": dojo.byId('txtPhone').value.trim(),
+            "EMAIL": dojo.byId('txtMail').value.trim(),
+            "STATUS": "Unassigned",
+            "REQUESTDATE": date.utcMsFromTimestamp(date.localToUtc(date.localTimestampNow())),
+            "BUILDING": currentBuilding,
+            "FLOOR": currentFloor
         };
         if (outsideServiceRequest) {
             serviceRequestAttributes.building = outsideBuilding;
@@ -749,11 +749,11 @@ function CreateServiceRequest() {
         map.getLayer(serviceRequestLayerInfo.Key).applyEdits([serviceRequestGraphic], null, null, function (addResults) {
             if (addResults[0].success) {
                 var objectIdField = map.getLayer(serviceRequestLayerInfo.Key).objectIdField;
-                var requestID = { "requestid": String(addResults[0].objectId) };
+                var requestID = { "REQUESTID": String(addResults[0].objectId) };
                 requestID[objectIdField] = addResults[0].objectId;
                 var requestGraphic = new esri.Graphic(mapPoint, null, requestID, null);
                 map.getLayer(serviceRequestLayerInfo.Key).applyEdits(null, [requestGraphic], null, function () {
-                    serviceRequestGraphic.attributes["requestid"] = String(addResults[0].objectId);
+                    serviceRequestGraphic.attributes["REQUESTID"] = String(addResults[0].objectId);
                     HideLoadingMessage();
                     map.infoWindow.hide();
                     selectedGraphics = null;
@@ -764,7 +764,7 @@ function CreateServiceRequest() {
                         LocateBuildingFloors(arrBuilding[currentBuilding], 1, true);
                     }
 
-                    alert(messages.getElementsByTagName("serviceReqtId")[0].childNodes[0].nodeValue + serviceRequestGraphic.attributes["requestid"] + messages.getElementsByTagName("serviceReqIdSuccess")[0].childNodes[0].nodeValue);
+                    alert(messages.getElementsByTagName("serviceReqtId")[0].childNodes[0].nodeValue + serviceRequestGraphic.attributes["REQUESTID"] + messages.getElementsByTagName("serviceReqIdSuccess")[0].childNodes[0].nodeValue);
 
                 }, function (err) {
                     ResetRequestValues();
