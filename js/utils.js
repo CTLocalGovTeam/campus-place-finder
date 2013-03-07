@@ -16,30 +16,7 @@
 */
 var accHeight;
 
-//display Help window
-function ShowHelp() {
-    window.open(helpFileURL, "helpwindow");
-    var helpbutton = dijit.byId('imgHelp');
-}
-
-//add graphics layer
-function AddGraphic(layer, symbol, point, attr) {
-    var graphic = new esri.Graphic(point, symbol, attr, null);
-    var features = [];
-    features.push(graphic);
-    var featureSet = new esri.tasks.FeatureSet();
-    featureSet.features = features;
-    layer.add(featureSet.features[0]);
-}
-
 //clear Graphics layer
-function ClearAll() {
-    map.infoWindow.hide();
-    for (var i = 0; i < map.graphicsLayerIds.length; i++) {
-        map.getLayer(map.graphicsLayerIds[i]).clear();
-    }
-}
-
 function ClearGraphics() {
     var layer = map.getLayer(queryGraphicLayer);
     if (layer) {
@@ -158,23 +135,6 @@ String.prototype.bool = function () {
     return (/^true$/i).test(this);
 };
 
-//create custom anchor point
-function GetInfoWindowAnchor(pt, infoWindowWidth) {
-    var verticalAlign;
-    if (pt.y < map.height / 2) {
-        verticalAlign = "LOWER";
-    }
-    else {
-        verticalAlign = "UPPER";
-    }
-    if ((pt.x + infoWindowWidth) > map.width) {
-        return esri.dijit.InfoWindow["ANCHOR_" + verticalAlign + "LEFT"];
-    }
-    else {
-        return esri.dijit.InfoWindow["ANCHOR_" + verticalAlign + "RIGHT"];
-    }
-}
-
 //display loading image in comments tab
 function ShowDojoLoading(target) {
     dijit.byId('dojoStandBy').target = target;
@@ -193,7 +153,6 @@ function HideInfoWindow() {
 
 //display container with wipe-in animation
 function WipeInControl(node, height, duration) {
-
     var animation = dojo.fx.wipeIn({
         node: node,
         height: height,
@@ -225,7 +184,7 @@ function WipeOutControl(node, height, duration) {
             }
             else {
                 if (dojo.coords("divAccordion").h > 0) {
-                    accHeight = dojo.coords("divAccordion").h-53;
+                    accHeight = dojo.coords("divAccordion").h - 53;
                     dojo.byId('divAccordion').style.height = 0 + "px";
                 }
             }
@@ -270,7 +229,7 @@ String.prototype.trim = function () {
     return this.replace(/^\s+|\s+$/g, '');
 }
 
-//append "..." at the end for a long string 
+//append "..." at the end for a long string
 String.prototype.trimString = function (len) {
     return (this.length > len) ? this.substring(0, len) + "..." : this;
 }
@@ -415,7 +374,6 @@ function CreateScrollbar(container, content) {
     };
 }
 
-
 //remove scroll bar
 function RemoveScrollBar(container) {
     if (dojo.byId(container.id + 'scrollbar_track')) {
@@ -455,6 +413,17 @@ function CheckMailFormat(emailValue) {
     }
 }
 
+//validate Email for comments in comments tab
+function CheckCommentMailFormat(emailValue) {
+    var pattern = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,6}$/i
+    if (pattern.test(emailValue)) {
+        return true;
+    }
+    else {
+        return false;
+    }
+}
+
 //show locator container and close other containers in header
 function ShowLocateContainer() {
     RemoveChildren(dojo.byId('tblAddressResults'));
@@ -484,9 +453,11 @@ function ShowLocateContainer() {
         dojo.byId("txtAddress").style.color = "gray";
         if (dojo.byId("tdSearchPerson").className == "tdSearchByPerson") {
             dojo.byId("txtAddress").value = dojo.byId("txtAddress").getAttribute("displayPerson");
+            lastSearchString = dojo.byId("txtAddress").value.trim();
         }
-        else{
-         dojo.byId("txtAddress").value = dojo.byId("txtAddress").getAttribute("displayPlace");
+        else {
+            dojo.byId("txtAddress").value = dojo.byId("txtAddress").getAttribute("displayPlace");
+            lastSearchString = dojo.byId("txtAddress").value.trim();
         }
         dojo.byId("divAddressContent").style.height = "310px";
         dojo.replaceClass("divAddressContent", "showContainerHeight", "hideContainerHeight");
@@ -530,9 +501,9 @@ function ShowAccordion() {
         dojo.replaceClass("divAccordion", "showContainerHeight", "hideContainerHeight");
         dojo.byId('divExpress').style.height = '80px';
         dojo.byId('divAccordion').style.height = accHeight + "px";
-           setTimeout(function () {
-        HideLoadingMessage();
-    }, 500);
+        setTimeout(function () {
+            HideLoadingMessage();
+        }, 500);
     }
 }
 
@@ -550,11 +521,14 @@ function ShareLink(ext) {
     tinyUrl = null;
     mapExtent = GetMapExtent();
     var url = esri.urlToObject(windowURL);
-    if (!SelectedId) {
-        var urlStr = encodeURI(url.path) + "?extent=" + mapExtent;
+    if (SelectedId) {
+        var urlStr = encodeURI(url.path) + "?extent=" + mapExtent + "$SelectedId=" + SelectedId;
+    }
+    else if (buildingID && floorID) {
+        var urlStr = encodeURI(url.path) + "?extent=" + mapExtent + "$buildingID=" + buildingID + "$floorID=" + floorID;
     }
     else {
-        var urlStr = encodeURI(url.path) + "?extent=" + mapExtent + "$SelectedId=" + SelectedId;
+        var urlStr = encodeURI(url.path) + "?extent=" + mapExtent;
     }
     url = dojo.string.substitute(mapSharingOptions.TinyURLServiceURL, [urlStr]);
 
@@ -644,9 +618,10 @@ function GetMapExtent() {
 }
 
 //style and enable the person search icon
-function showPersonSearch() {
+function ShowPersonSearch() {
     dojo.byId("txtAddress").style.color = "gray";
     dojo.byId("txtAddress").value = dojo.byId("txtAddress").getAttribute("displayPerson");
+    lastSearchString = dojo.byId("txtAddress").value.trim();
     RemoveChildren(dojo.byId('tblAddressResults'));
     RemoveScrollBar(dojo.byId('divAddressScrollContainer'));
     dojo.byId("tdSearchPerson").className = "tdSearchByPerson";
@@ -655,9 +630,10 @@ function showPersonSearch() {
 }
 
 //style and enable the place search icon
-function showPlaceSearch() {
+function ShowPlaceSearch() {
     dojo.byId("txtAddress").style.color = "gray";
     dojo.byId("txtAddress").value = dojo.byId("txtAddress").getAttribute("displayPlace");
+    lastSearchString = dojo.byId("txtAddress").value.trim();
     RemoveChildren(dojo.byId('tblAddressResults'));
     RemoveScrollBar(dojo.byId('divAddressScrollContainer'));
     dojo.byId("tdSearchPerson").className = "tdSearchByUnPerson";
@@ -667,17 +643,14 @@ function showPlaceSearch() {
 
 //clear default value
 function ClearDefaultText(e) {
-
     if (dojo.byId("tdSearchPerson").className == "tdSearchByPerson") {
-            dojo.byId("txtAddress").value = '';
+        dojo.byId("txtAddress").value = '';
         dojo.byId("txtAddress").style.color = "white";
     }
-
     if (dojo.byId("tdSearchPlace").className == "tdSearchByPlace") {
-            dojo.byId("txtAddress").value = '';
+        dojo.byId("txtAddress").value = '';
         dojo.byId("txtAddress").style.color = "white";
     }
-
 }
 
 //Set default value on blur
@@ -699,9 +672,10 @@ function ResetTargetValue(target, title, color) {
         target.value = target.title;
         if (target.title == "") {
             target.value = target.getAttribute(title);
-            target.style.color = color;
         }
     }
+    target.style.color = color;
+    lastSearchString = dojo.byId("txtAddress").value.trim();
 }
 //Get query string value of the provided key, if not found the function returns empty string
 function GetQuerystring(key) {
@@ -748,6 +722,7 @@ function HideCreateRequestContainer() {
 
 function HideDetailsInfo() {
     selectedGraphics = null;
+    SelectedId = null;
     map.infoWindow.hide();
     dojo.byId('divDetailsInfo').style.display = "none";
     dojo.destroy(dojo.byId("divInfoContainer"));
@@ -760,10 +735,9 @@ function ImposeMaxLength(Object, MaxLen) {
 
 //clear the comments container
 function HideCommentsContainer() {
-selectedGraphics = null;
- map.infoWindow.hide();
- dojo.byId('divCommentsInfo').style.display = "none";
- dojo.destroy(dojo.byId("divDetailsContainer"));
- dojo.destroy(dojo.byId("divComments"));
-
+    selectedGraphics = null;
+    map.infoWindow.hide();
+    dojo.byId('divCommentsInfo').style.display = "none";
+    dojo.destroy(dojo.byId("divDetailsContainer"));
+    dojo.destroy(dojo.byId("divComments"));
 }

@@ -1,21 +1,21 @@
 ﻿/** @license
- | Version 10.1.1
- | Copyright 2012 Esri
- |
- | Licensed under the Apache License, Version 2.0 (the "License");
- | you may not use this file except in compliance with the License.
- | You may obtain a copy of the License at
- |
- |    http://www.apache.org/licenses/LICENSE-2.0
- |
- | Unless required by applicable law or agreed to in writing, software
- | distributed under the License is distributed on an "AS IS" BASIS,
- | WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- | See the License for the specific language governing permissions and
- | limitations under the License.
- */
+| Version 10.1.1
+| Copyright 2012 Esri
+|
+| Licensed under the Apache License, Version 2.0 (the "License");
+| you may not use this file except in compliance with the License.
+| You may obtain a copy of the License at
+|
+|    http://www.apache.org/licenses/LICENSE-2.0
+|
+| Unless required by applicable law or agreed to in writing, software
+| distributed under the License is distributed on an "AS IS" BASIS,
+| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+| See the License for the specific language governing permissions and
+| limitations under the License.
+*/
 var serviceRequestStore = '';      //Variable for storing service request types.
-var reqId;
+var requestId;   //Variable for storing service request ID.
 
 //add service request layer on map
 function AddServiceRequestLayerOnMap() {
@@ -30,9 +30,7 @@ function AddServiceRequestLayerOnMap() {
 
     dojo.connect(serviceRequestLayer, "onClick", function (evt) {
         map.infoWindow.hide();
-
         HideCommentsContainer();
-
         HideDetailsInfo();
         HideCreateRequestContainer();
         ShowServiceRequestDetails(evt.graphic.geometry, evt.graphic.attributes);
@@ -67,11 +65,11 @@ function AddServiceRequestLayerOnMap() {
 function ShowServiceRequestDetails(mapPoint, attributes) {
     SelectedId = dojo.string.substitute(serviceRequestLayerInfo.ShareFields, attributes);
     infoWindowDescriptionFields = [];
-    reqId = dojo.string.substitute(commentsInfoPopupFieldsCollection.RequestId, attributes);
+    requestId = dojo.string.substitute(serviceRequestLayerInfo.RequestId, attributes);
     ShowServiceRequestTabContainer(attributes);
     selectedGraphics = mapPoint;
     map.setExtent(GetBrowserMapExtent(mapPoint));
-    FetchRequestComments(dojo.string.substitute(commentsInfoPopupFieldsCollection.RequestId, attributes), attributes, mapPoint);
+    FetchRequestComments(dojo.string.substitute(serviceRequestLayerInfo.CommentId, attributes), attributes, mapPoint);
     RemoveChildren(dojo.byId("divAttachmentsData"));
     RemoveChildren(dojo.byId("divCommentsContent"));
     CreateRatingWidget(dojo.byId('commentRating'));
@@ -80,15 +78,18 @@ function ShowServiceRequestDetails(mapPoint, attributes) {
 
 //fetch comments for service request
 function FetchRequestComments(requestID, attributes, mapPoint) {
+    var reqId;
     ShowDojoLoading(dojo.byId("divComments"));
     var query = new esri.tasks.Query();
-    query.where = "REQUESTID = '" + requestID + "'";
+    serviceRequestLayerInfo.CommentId.replace(/\$\{([^\s\:\}]+)(?:\:([^\s\:\}]+))?\}/g, function (match, key) {
+        reqId = key;
+    });
+    query.where = reqId + "= '" + requestID + "'";
     query.outFields = ["*"];
     for (var layerInfo in serviceRequestLayerInfo) {
         //execute query
         if (layerInfo == "CommentsLayerURL") {
             map.getLayer(serviceRequestLayerInfo["Key"] + "Comments").selectFeatures(query, esri.layers.FeatureLayer.SELECTION_NEW, function (features) {
-
                 dojo.byId('spanCommentsCount').innerHTML = features.length;
                 var commentsTable = document.createElement("table");
                 commentsTable.style.width = "95%";
@@ -110,7 +111,7 @@ function FetchRequestComments(requestID, attributes, mapPoint) {
                     }
                 }
                 setTimeout(function () {
-                    ShowInfoWindow(mapPoint, "Service Request ID: #" + dojo.string.substitute(commentsInfoPopupFieldsCollection.RequestId, attributes), dojo.byId("divCommentsInfo"), dojo.byId("tdCommentsHeader"));
+                    ShowInfoWindow(mapPoint, "Service Request ID: #" + dojo.string.substitute(serviceRequestLayerInfo.RequestId, attributes), dojo.byId("divCommentsInfo"), dojo.byId("tdCommentsHeader"));
                 }, 500);
                 HideDojoLoading();
                 CreateCommentsScrollBar();
@@ -149,11 +150,40 @@ function CreateCommentRecord(attributes, i) {
     var tr1 = document.createElement("tr");
     var td2 = document.createElement("td");
     var divComments = dojo.create("div", { "class": "wordBreakComments" }, td2);
-    divComments.style.width = "270px";
+    divComments.style.width = (infoPopupWidth - 40) + "px";
     td2.colSpan = 3;
 
     if (dojo.string.substitute(commentsInfoPopupFieldsCollection.Comments, attributes)) {
-        divComments.innerHTML = dojo.string.substitute(commentsInfoPopupFieldsCollection.Comments, attributes);
+        var wordCount = dojo.string.substitute(commentsInfoPopupFieldsCollection.Comments, attributes).split(/\n/).length;
+        if (wordCount > 1) {
+            var value = dojo.string.substitute(commentsInfoPopupFieldsCollection.Comments, attributes).split(/\n/)[0].length == 0 ? "<br>" : dojo.string.substitute(commentsInfoPopupFieldsCollection.Comments, attributes).split(/\n/)[0].trim();
+            for (var c = 1; c < wordCount; c++) {
+                var comment;
+                if (value != "<br>") {
+                    comment = dojo.string.substitute(commentsInfoPopupFieldsCollection.Comments, attributes).split(/\n/)[c].trim().replace("", "<br>");
+                } else {
+                    comment = dojo.string.substitute(commentsInfoPopupFieldsCollection.Comments, attributes).split(/\n/)[c].trim();
+                }
+                value += dojo.string.substitute(commentsInfoPopupFieldsCollection.Comments, attributes).split(/\n/)[c].length == 0 ? "<br>" : comment;
+            }
+        } else {
+            value = dojo.string.substitute(commentsInfoPopupFieldsCollection.Comments, attributes);
+        }
+        divComments.innerHTML += value;
+        if (CheckCommentMailFormat(dojo.string.substitute(commentsInfoPopupFieldsCollection.Comments, attributes)) || dojo.string.substitute(dojo.string.substitute(commentsInfoPopupFieldsCollection.Comments, attributes)).match("http:") || dojo.string.substitute(dojo.string.substitute(commentsInfoPopupFieldsCollection.Comments, attributes)).match("https:")) {
+            divComments.className = "wordBreak";
+        } else {
+            divComments.className = "tdBreak";
+        }
+        var x = dojo.string.substitute(commentsInfoPopupFieldsCollection.Comments, attributes).split(" ");
+        for (var i in x) {
+            w = x[i].getWidth(15) - 50;
+            var boxWidth = infoPopupWidth - 40;
+            if (boxWidth < w) {
+                divComments.className = "wordBreak";
+                continue;
+            }
+        }
     }
     else {
         divComments.innerHTML = showNullValueAs;
@@ -181,12 +211,12 @@ function AddRequestComment() {
     ShowDojoLoading(dojo.byId("divComments"));
     var commentGraphic = new esri.Graphic();
     var date = new js.date();
-    var attr = {
-        "REQUESTID": reqId,
-        "COMMENTS": text,
-        "SUBMITDT": date.utcMsFromTimestamp(date.localToUtc(date.localTimestampNow())),
-        "RANK": Number(dojo.byId('commentRating').value)
-    };
+    var attr = {};
+    attr[databaseFields.RequestIdFieldName] = requestId;
+    attr[databaseFields.CommentsFieldName] = text;
+    attr[databaseFields.DateFieldName] = date.utcMsFromTimestamp(date.localToUtc(date.localTimestampNow()));
+    attr[databaseFields.RankFieldName] = Number(dojo.byId('commentRating').value);
+
     commentGraphic.setAttributes(attr);
 
     if (serviceRequestLayerInfo.CommentsLayerURL) {
@@ -206,14 +236,14 @@ function AddRequestComment() {
                     commentsCell.appendChild(CreateCommentRecord(attr, index));
                     tr.appendChild(commentsCell);
                     CreateRatingWidget(dojo.byId('commentRating' + index));
-                    SetRating(dojo.byId('commentRating' + index), attr.RANK);
+                    SetRating(dojo.byId('commentRating' + index), attr[databaseFields.RankFieldName]);
                     var query = new esri.tasks.Query();
                     var relationshipId;
-                    commentsInfoPopupFieldsCollection.RequestId.replace(/\$\{([^\s\:\}]+)(?:\:([^\s\:\}]+))?\}/g, function (match, key) {
+                    serviceRequestLayerInfo.CommentId.replace(/\$\{([^\s\:\}]+)(?:\:([^\s\:\}]+))?\}/g, function (match, key) {
                         relationshipId = key;
                     });
 
-                    query.where = relationshipId + " = '" + attr.REQUESTID + "'";
+                    query.where = relationshipId + " = '" + attr[databaseFields.RequestIdFieldName] + "'";
                     query.outFields = ["*"];
                     map.getLayer(serviceRequestLayerInfo.Key + "Comments").selectFeatures(query, esri.layers.FeatureLayer.SELECTION_NEW, function (features) {
                         dojo.byId('spanCommentsCount').innerHTML = features.length;
@@ -228,6 +258,18 @@ function AddRequestComment() {
         });
         ResetCommentFields();
     }
+}
+
+//Get width of a control when text and font size are specified
+String.prototype.getWidth = function (fontSize) {
+    var test = document.createElement("span");
+    document.body.appendChild(test);
+    test.style.visibility = "hidden";
+    test.style.fontSize = fontSize + "px";
+    test.innerHTML = this;
+    var w = test.offsetWidth;
+    document.body.removeChild(test);
+    return w;
 }
 
 //Sort comments according to date
@@ -277,7 +319,7 @@ function CreateCommetsContainer() {
     var tbody = document.createElement("tbody");
     table.style.paddingLeft = "5px";
     table.style.cursor = "pointer";
-    table.style.fontSize = "10px";
+    table.style.fontSize = "11px";
     table.onclick = function () { ToggleCommentsView(true); };
     table.appendChild(tbody);
     var tr = document.createElement("tr");
@@ -295,7 +337,7 @@ function CreateCommetsContainer() {
     divCommentData.id = "divCommentData";
     divCommentData.style.height = "100%";
     divCommentData.style.width = "100%";
-    divCommentData.style.fontSize = "10px";
+    divCommentData.style.fontSize = "11px";
 
     var table = document.createElement("table");
     table.style.width = "100%";
@@ -326,7 +368,6 @@ function CreateCommetsContainer() {
     divCommentsContent.style.overflow = "hidden";
     divCommentsContent.style.position = "absolute";
     divCommentsContent.style.height = (infoPopupHeight - 110) + "px";
-
 
     divCommentsContainer.appendChild(divCommentsContent);
 
@@ -412,7 +453,6 @@ function CreateCommentAddTable(mainDiv, request, idSubmit, idCancel) {
 
     outerDiv.className = "customButton";
     if (idSubmit) {
-
         outerDiv.id = idSubmit;
     }
     outerDiv.style.width = "75px";
@@ -536,7 +576,6 @@ function CreateServiceRequestDetails(attributes) {
                 spanRequestDesription.innerHTML = showNullValueAs;
             }
             else {
-
                 spanRequestDesription.innerHTML = dojo.string.substitute(infoFields[index].FieldName, attributes);
             }
             td2.appendChild(spanRequestDesription);
@@ -607,7 +646,6 @@ function CreateCommentsScrollBar() {
     ToggleCommentsView(false);
 }
 
-
 //Toggle comment view
 function ToggleCommentsView(viewStatus) {
     if (viewStatus) {
@@ -650,9 +688,9 @@ function PopulateRequestTypes(serviceRequestLayerFields) {
 
 //Hide Service Request layer
 function ToggleServiceRequestLayer() {
-
     if (map.getLayer(serviceRequestLayerInfo.Key)) {
         map.infoWindow.hide();
+        selectedGraphics = null;
         var serviceRequestLayer = map.getLayer(serviceRequestLayerInfo.Key);
         var query = new esri.tasks.Query();
         if (isSubmitDisabled) {
@@ -723,25 +761,25 @@ function CreateServiceRequest() {
         return false;
     }
     if (ValidateRequestData()) {
-
         ShowLoadingMessage();
         var mapPoint = map.getLayer(tempServiceRequestLayerId).graphics[0].geometry;
         mapPoint.spatialReference = map.spatialReference;
         var date = new js.date();
-        var serviceRequestAttributes = {
-            "REQUESTTYPE": dijit.byId("cbRequestType").getValue(),
-            "COMMENTS": dojo.byId('txtDescription').value.trim(),
-            "NAME": dojo.byId('txtName').value.trim(),
-            "PHONE": dojo.byId('txtPhone').value.trim(),
-            "EMAIL": dojo.byId('txtMail').value.trim(),
-            "STATUS": "Unassigned",
-            "REQUESTDATE": date.utcMsFromTimestamp(date.localToUtc(date.localTimestampNow())),
-            "BUILDING": currentBuilding,
-            "FLOOR": currentFloor
-        };
+
+        var serviceRequestAttributes = {};
+        serviceRequestAttributes[serviceRequestFields.RequestTypeFieldName] = dijit.byId("cbRequestType").getValue();
+        serviceRequestAttributes[serviceRequestFields.CommentsFieldName] = dojo.byId('txtDescription').value.trim();
+        serviceRequestAttributes[serviceRequestFields.NameFieldName] = dojo.byId('txtName').value.trim();
+        serviceRequestAttributes[serviceRequestFields.PhoneFieldName] = dojo.byId('txtPhone').value;
+        serviceRequestAttributes[serviceRequestFields.EmailFieldName] = dojo.byId('txtMail').value.trim();
+        serviceRequestAttributes[serviceRequestFields.StatusFieldName] = "Unassigned";
+        serviceRequestAttributes[serviceRequestFields.RequestDateFieldName] = date.utcMsFromTimestamp(date.localToUtc(date.localTimestampNow()));
+        serviceRequestAttributes[serviceRequestFields.BuildingFieldName] = currentBuilding;
+        serviceRequestAttributes[serviceRequestFields.FloorFieldName] = currentFloor;
+
         if (outsideServiceRequest) {
-            serviceRequestAttributes.building = outsideBuilding;
-            serviceRequestAttributes.floor = 1;
+            serviceRequestAttributes[serviceRequestFields.BuildingFieldName] = outsideBuilding;
+            serviceRequestAttributes[serviceRequestFields.FloorFieldName] = 1;
             currentFloor = 1;
         }
 
@@ -749,11 +787,12 @@ function CreateServiceRequest() {
         map.getLayer(serviceRequestLayerInfo.Key).applyEdits([serviceRequestGraphic], null, null, function (addResults) {
             if (addResults[0].success) {
                 var objectIdField = map.getLayer(serviceRequestLayerInfo.Key).objectIdField;
-                var requestID = { "REQUESTID": String(addResults[0].objectId) };
+                var requestID = {};
+                requestID[serviceRequestFields.RequestIdFieldName] = String(addResults[0].objectId);
                 requestID[objectIdField] = addResults[0].objectId;
                 var requestGraphic = new esri.Graphic(mapPoint, null, requestID, null);
                 map.getLayer(serviceRequestLayerInfo.Key).applyEdits(null, [requestGraphic], null, function () {
-                    serviceRequestGraphic.attributes["REQUESTID"] = String(addResults[0].objectId);
+                    serviceRequestAttributes[serviceRequestFields.RequestIdFieldName] = String(addResults[0].objectId);
                     HideLoadingMessage();
                     map.infoWindow.hide();
                     selectedGraphics = null;
@@ -763,8 +802,7 @@ function CreateServiceRequest() {
                         CreateFloorSwitcher(arrBuilding, currentBuilding, 1);
                         LocateBuildingFloors(arrBuilding[currentBuilding], 1, true);
                     }
-
-                    alert(messages.getElementsByTagName("serviceReqtId")[0].childNodes[0].nodeValue + serviceRequestGraphic.attributes["REQUESTID"] + messages.getElementsByTagName("serviceReqIdSuccess")[0].childNodes[0].nodeValue);
+                    alert(messages.getElementsByTagName("serviceReqtId")[0].childNodes[0].nodeValue + serviceRequestAttributes[serviceRequestFields.RequestIdFieldName] + messages.getElementsByTagName("serviceReqIdSuccess")[0].childNodes[0].nodeValue);
 
                 }, function (err) {
                     ResetRequestValues();

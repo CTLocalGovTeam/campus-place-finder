@@ -15,7 +15,7 @@
 | limitations under the License.
 */
 //display accordion and express based on config file data
-function liftHandler() {
+function LiftHandler() {
     if (floorSwitcher.IsExpressVisible || floorSwitcher.IsAccordionVisible) {
         if (floorSwitcher.IsExpressVisible && floorSwitcher.IsAccordionVisible) {
             dojo.byId('divExpress').style.display = 'block';
@@ -26,7 +26,7 @@ function liftHandler() {
             dojo.byId('divExpress').style.display = 'block';
             dojo.byId('divAccordion').style.display = 'none';
             dojo.replaceClass("divExpress", "showContainerHeight", "hideContainerHeight");
-            dojo.replaceClass("divAccordion", "hideContainerHeight", "showContainerHeight"); 
+            dojo.replaceClass("divAccordion", "hideContainerHeight", "showContainerHeight");
         }
         else {
             dojo.byId('divAccordion').style.display = 'block';
@@ -44,7 +44,6 @@ function liftHandler() {
     accHeight = dojo.coords('divAccordion').h;
 }
 
-
 var currentIndex = 0;
 
 function InitializeSpinner(arrayObject, floor) {
@@ -53,7 +52,7 @@ function InitializeSpinner(arrayObject, floor) {
     dojo.byId('spanExpress').innerHTML = dojo.string.substitute(serviceRequestLayerInfo.BuildingKey, arrayObject[0].feature.attributes);
 }
 
-//change floors on mouse scroll event 
+//change floors on mouse scroll event
 function SpinnerMouseWheelEvent(evt) {
     map.infoWindow.hide();
     selectedGraphics = null;
@@ -123,6 +122,8 @@ function GetFloorName(arrayObject, floor) {
 
 //triggered when floor is changed
 function ExpressChangeEvent(floor) {
+    buildingID = currentBuilding;
+    floorID = floor;
     if (floor) {
         currentFloor = floor;
         if (currentBuilding) {
@@ -143,6 +144,8 @@ function ChangeFloor(imgControl) {
     var buildingKey = arr[0];
     var floor = arr[1];
 
+    buildingID = buildingKey;
+    floorID = floor;
     if (buildingKey == currentBuilding) {
         if (currentFloor != floor) {
             currentFloor = floor;
@@ -216,7 +219,7 @@ function GetExtentPolygon(featureSet) {
 }
 
 //create dom elements for radio buttons to switch floors
-function CreateFloorSwitcher(buildingArray, building, selectedFloor,accordion) {
+function CreateFloorSwitcher(buildingArray, building, selectedFloor, accordion) {
     for (var bldg in buildingArray) {
         var divContainer;
         if (dojo.byId('divContainer' + bldg)) {
@@ -289,7 +292,6 @@ function CreateFloorSwitcher(buildingArray, building, selectedFloor,accordion) {
         if (bldg == building) {
             img.src = 'images/font-minus.png';
             img.className = "text";
-            WipeInControl(floorDiv, 53, 1000);
         }
         else {
             img.src = 'images/font-plus.png';
@@ -400,13 +402,11 @@ function ShowHideLevel(evt) {
     var divNode = dojo.byId('floorDiv-' + level);
 
     if (dojo.coords(divNode).h > 0) {
-        WipeOutControl(divNode,53, 500);
+        WipeOutControl(divNode, 53, 500);
         evt.src = 'images/font-plus.png';
     }
     else {
         WipeInControl(divNode, 53, 500);
         evt.src = 'images/font-minus.png';
     }
-
 }
-

@@ -1,19 +1,19 @@
 ﻿/** @license
- | Version 10.1.1
- | Copyright 2012 Esri
- |
- | Licensed under the Apache License, Version 2.0 (the "License");
- | you may not use this file except in compliance with the License.
- | You may obtain a copy of the License at
- |
- |    http://www.apache.org/licenses/LICENSE-2.0
- |
- | Unless required by applicable law or agreed to in writing, software
- | distributed under the License is distributed on an "AS IS" BASIS,
- | WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- | See the License for the specific language governing permissions and
- | limitations under the License.
- */
+| Version 10.1.1
+| Copyright 2012 Esri
+|
+| Licensed under the Apache License, Version 2.0 (the "License");
+| you may not use this file except in compliance with the License.
+| You may obtain a copy of the License at
+|
+|    http://www.apache.org/licenses/LICENSE-2.0
+|
+| Unless required by applicable law or agreed to in writing, software
+| distributed under the License is distributed on an "AS IS" BASIS,
+| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+| See the License for the specific language governing permissions and
+| limitations under the License.
+*/
 var mapPoint;                   //Variable for storing map point location
 var buildingCount;              //Variable for storing total building count
 
@@ -27,7 +27,7 @@ var selectedGraphics;
 
 //Get candidate results for person name/place name
 function Locate() {
-
+    var thisSearchTime = lastSearchTime = (new Date()).getTime();
     RemoveChildren(dojo.byId('tblAddressResults'));
     RemoveScrollBar(dojo.byId('divAddressScrollContainer'));
     var searchText = dojo.byId('txtAddress').value.trim();
@@ -38,7 +38,6 @@ function Locate() {
     if (searchText != '') {
         dojo.byId("imgSearchLoader").style.display = "block";
         if (dojo.hasClass('tdSearchPerson', 'tdSearchByPerson')) {     //person search is selected
-
             //query person layer to fetch searched details
             queryTask = new esri.tasks.QueryTask(personLayer.QueryURL);
             var queryFields = personLayer.QueryFields.split(',');
@@ -46,19 +45,25 @@ function Locate() {
             if (searchText.lastIndexOf(' ') > 0) {
                 for (var index in queryFields) {
                     var name = (index == 0) ? searchText.substr(0, searchText.lastIndexOf(' ')) : searchText.substr(searchText.lastIndexOf(' ') + 1);
-                    whereClause += "UPPER(" + queryFields[index] + ") LIKE '" + name.toUpperCase() + "%' OR ";
+                    whereClause += "UPPER(" + queryFields[index] + ") LIKE '" + name.toUpperCase().trim() + "%' OR ";
                 }
             }
             else {
                 for (var index in queryFields) {
-                    whereClause += "UPPER(" + queryFields[index] + ") LIKE '" + searchText.toUpperCase() + "%' OR ";
+                    whereClause += "UPPER(" + queryFields[index] + ") LIKE '" + searchText.toUpperCase().trim() + "%' OR ";
                 }
             }
 
             whereClause = whereClause.slice(0, whereClause.length - 3);
             query.where = whereClause;
-            query.outFields = [personLayer.OutFields];
-            queryTask.execute(query, PopulatePersons, function (err) {
+            query.outFields = ["*"];
+            queryTask.execute(query, function (featureSet) {
+                if (thisSearchTime < lastSearchTime) {
+                    return;
+                }
+                PopulatePersons(featureSet);
+
+            }, function (err) {
                 alert(err.message);
                 dojo.byId("imgSearchLoader").style.display = "none";
             });
@@ -75,7 +80,13 @@ function Locate() {
             whereClause = whereClause.slice(0, whereClause.length - 3);
             query.where = whereClause;
             query.outFields = [placeLayer.OutFields];
-            queryTask.execute(query, GroupPlacesBySpaceType, function (err) {
+            queryTask.execute(query, function (featureSet) {
+                if (thisSearchTime < lastSearchTime) {
+                    return;
+                }
+                GroupPlacesBySpaceType(featureSet);
+
+            }, function (err) {
                 alert(err.message);
                 dojo.byId("imgSearchLoader").style.display = "none";
             });
@@ -88,8 +99,8 @@ function Locate() {
 
 //sort features by name
 function SortByName(a, b) {
-    var x = a.attributes.FIRSTNAME + " " + a.attributes.LASTNAME;
-    var y = b.attributes.FIRSTNAME + " " + b.attributes.LASTNAME;
+    var x = a.attributes[personLayer.FirstName] + " " + a.attributes[personLayer.LastName];
+    var y = b.attributes[personLayer.FirstName] + " " + b.attributes[personLayer.LastName];
     return ((x < y) ? -1 : ((x > y) ? 1 : 0));
 }
 
@@ -121,7 +132,6 @@ function PopulatePersons(featureSet) {
             td1.onclick = function () { // on-click events for the list of searches available
                 ShowLoadingMessage();
                 HideCreateRequestContainer();
-                HideDetailsInfo();
                 HideCommentsContainer();
                 map.infoWindow.hide();
                 QueryRelatedRecords(featureSet.features[this.id]);
@@ -129,13 +139,13 @@ function PopulatePersons(featureSet) {
                 dojo.byId("txtAddress").setAttribute("displayPerson", this.innerHTML);
                 dojo.byId("txtAddress").style.color = "gray";
                 dojo.byId('txtAddress').value = this.innerHTML;
+                lastSearchString = dojo.byId("txtAddress").value.trim();
             }
             tr.appendChild(td1);
         }
         SetHeightAddressResults();
     }
     else {
-
         //show error message if no searches are available
         dojo.byId("imgSearchLoader").style.display = "none";
         var table = dojo.byId("tblAddressResults");
@@ -146,9 +156,7 @@ function PopulatePersons(featureSet) {
         tBody.appendChild(tr);
         var td1 = document.createElement("td");
         tr.appendChild(td1);
-        td1.className = 'tdAddress';
         td1.height = 20;
-        td1.cursor = "";
         td1.innerHTML = messages.getElementsByTagName("invalidSearch")[0].childNodes[0].nodeValue
     }
     dojo.byId("imgSearchLoader").style.display = "none";
@@ -156,28 +164,31 @@ function PopulatePersons(featureSet) {
 
 //hide the address container
 function HideAddressContainer() {
+    lastSearchString = dojo.byId("txtAddress").value.trim();
     dojo.replaceClass("divAddressContent", "hideContainerHeight", "showContainerHeight");
     dojo.byId('divAddressContent').style.height = '0px';
+
 }
 
 //fetch the details of queried person
 function QueryRelatedRecords(feature) {
-    var relationQuery = new esri.tasks.RelationshipQuery();
-    relationQuery.objectIds = [dojo.string.substitute(operationalLayersCollection[0].ObjectID, feature.attributes)];
-    relationQuery.outFields = ["*"];
-    relationQuery.relationshipId = 0;
-    relationQuery.returnGeometry = true;
+    var queryTask = new esri.tasks.QueryTask(operationalLayersCollection[0].MapURL);
+    var query = new esri.tasks.Query();
+    var condition = dojo.string.substitute(operationalLayersCollection[0].RelationshipQuery, feature.attributes);
+    query.where = condition;
+    query.outFields = ["*"];
+    query.returnGeometry = true;
 
     //query person layer
-    var queryTask = new esri.tasks.QueryTask(personLayer.QueryURL);
-    queryTask.executeRelationshipQuery(relationQuery, function (result) {
-        if (!result[dojo.string.substitute(operationalLayersCollection[0].ObjectID, feature.attributes)]) {
+    queryTask.execute(query, function (result) {
+        if (!result.features[0]) {
             HideLoadingMessage();
             alert(dojo.byId('txtAddress').value + messages.getElementsByTagName("noLocationDet")[0].childNodes[0].nodeValue);
+            lastSearchString = dojo.byId("txtAddress").value.trim();
             return;
         }
 
-        var features = result[dojo.string.substitute(operationalLayersCollection[0].ObjectID, feature.attributes)].features[0];
+        var features = result.features[0];
 
         for (var attribute in feature.attributes) {
             features.attributes[attribute] = feature.attributes[attribute];
@@ -243,22 +254,10 @@ function GroupPlacesBySpaceType(featureSet) {
         tBody.appendChild(tr);
         var td1 = document.createElement("td");
         tr.appendChild(td1);
-        td1.className = 'tdAddress';
         td1.height = 20;
-        td1.cursor = "";
         td1.innerHTML = messages.getElementsByTagName("invalidSearch")[0].childNodes[0].nodeValue
     }
     HideLoadingMessage();
-}
-
-function SortJSONData(arrPlacesBySpaceType) {
-    var sorted = {}, key, a = [];
-
-    for (key in arrPlacesBySpaceType) {
-        if (o.hasOwnProperty(key)) {
-            a.push(key);
-        }
-    }
 }
 
 //categorize places in respective groups
@@ -315,9 +314,10 @@ function PopulatePlacesInGroup(arrSpaceTypes) {
                     }
 
                     HideAddressContainer();
-                    dojo.byId("txtAddress").setAttribute("displayPlace", dojo.string.substitute(personLayer.ShareFields, arrSpaceTypes[this.id.split('-')[0]][this.id.split('-')[1]].attributes));
+                    dojo.byId("txtAddress").setAttribute("displayPlace", dojo.string.substitute(operationalLayersCollection[0].ShareFields, arrSpaceTypes[this.id.split('-')[0]][this.id.split('-')[1]].attributes));
                     dojo.byId("txtAddress").style.color = "gray";
-                    dojo.byId('txtAddress').value = dojo.string.substitute(personLayer.ShareFields, arrSpaceTypes[this.id.split('-')[0]][this.id.split('-')[1]].attributes);
+                    dojo.byId('txtAddress').value = dojo.string.substitute(operationalLayersCollection[0].ShareFields, arrSpaceTypes[this.id.split('-')[0]][this.id.split('-')[1]].attributes);
+                    lastSearchString = dojo.byId("txtAddress").value.trim();
                     ShowSpaceFeature(arrSpaceTypes[this.id.split('-')[0]][this.id.split('-')[1]], placeLayer);
                     setTimeout(function () {
                         HideLoadingMessage();
@@ -364,7 +364,7 @@ function ToggleGroupDisplay(spaceType) {
 //display selected building and floor and set accordion content
 function ShowSpaceFeature(feature, layerInfo) {
     ClearGraphics();
-    SelectedId = dojo.string.substitute(personLayer.ShareFields, feature.attributes);
+    SelectedId = dojo.string.substitute(operationalLayersCollection[0].ShareFields, feature.attributes);
     var building = feature.attributes[placeLayer.QueryFields.split(',')[0]];
     var floor = feature.attributes[placeLayer.QueryFields.split(',')[1]];
     if (building != currentBuilding) {
@@ -424,14 +424,13 @@ function ShowSpaceFeature(feature, layerInfo) {
 
         var title = '';
         var truncateContent = false;
-        if ((feature.attributes[personLayer.SpaceType] == "N/A") && (feature.attributes[personLayer.SpaceID] == "N/A") || (!feature.attributes[personLayer.SpaceType]) && (!feature.attributes[personLayer.SpaceID])) {
+        if ((feature.attributes[operationalLayersCollection[0].SpaceType] == "N/A") && (feature.attributes[operationalLayersCollection[0].SpaceID] == "N/A") || (!feature.attributes[operationalLayersCollection[0].SpaceType]) && (!feature.attributes[operationalLayersCollection[0].SpaceID])) {
             title = showNullValueAs;
             truncateContent = true;
         }
         else {
             title = dojo.string.substitute(layerInfo.Title, feature.attributes);
         }
-        HideDetailsInfo();
         map.setExtent(GetBrowserMapExtent(feature.geometry.getExtent().getCenter()));
         selectedGraphics = feature.geometry.getExtent().getCenter();
         CreateInfoWindowContent(feature, layerInfo, truncateContent, dojo.byId("divPersonDetails"));
@@ -478,6 +477,7 @@ function CreateInfoWindowContent(feature, layerInfo, truncateContent, divContain
     var table = document.createElement("table");
     var tBody = document.createElement("tbody");
     table.id = 'tblInfoWindow';
+    table.style.paddingTop = "5px";
     table.appendChild(tBody);
     table.className = 'tblInfoWindow';
     table.cellSpacing = 0;
@@ -552,7 +552,7 @@ function ShowError(err) {
 }
 
 //display building and floors on load of application
-function OnloadFloors(building,floor) {
+function OnloadFloors(building, floor) {
     if (building) {
         onLoadBuilding = building;
         onLoadFloor = floor;
@@ -565,7 +565,7 @@ function OnloadFloors(building,floor) {
     }
 
     //query plain layer for floor of building to fetch the geometry coordinates
-    var queryTask = new esri.tasks.QueryTask(queryTaskUrl);
+    var queryTask = new esri.tasks.QueryTask(queryTaskUrl.QueryURL);
     var query;
     query = new esri.tasks.Query();
     query.returnGeometry = false;
@@ -577,18 +577,18 @@ function OnloadFloors(building,floor) {
                 if (fset.features.length) {
                     buildingCount = 0;
                     for (var i = 0; i < fset.features.length; i++) {
-                        if (arrBuilding[dojo.string.substitute(serviceRequestLayerInfo.BuildingKey, fset.features[i].attributes)]) {
-                            arrBuilding[dojo.string.substitute(serviceRequestLayerInfo.BuildingKey, fset.features[i].attributes)].push({ id: fset.features[i].attributes.FLOOR, feature: fset.features[i] });
+                        if (arrBuilding[dojo.string.substitute(queryTaskUrl.BuildingKey, fset.features[i].attributes)]) {
+                            arrBuilding[dojo.string.substitute(queryTaskUrl.BuildingKey, fset.features[i].attributes)].push({ id: dojo.string.substitute(queryTaskUrl.Floor, fset.features[i].attributes), feature: fset.features[i] });
                         }
                         else {
-                            arrBuilding[dojo.string.substitute(serviceRequestLayerInfo.BuildingKey, fset.features[i].attributes)] = [];
-                            arrBuilding[dojo.string.substitute(serviceRequestLayerInfo.BuildingKey, fset.features[i].attributes)].push({ id: dojo.string.substitute(operationalLayersCollection[0].Floor,fset.features[i].attributes), feature: fset.features[i] });
+                            arrBuilding[dojo.string.substitute(queryTaskUrl.BuildingKey, fset.features[i].attributes)] = [];
+                            arrBuilding[dojo.string.substitute(queryTaskUrl.BuildingKey, fset.features[i].attributes)].push({ id: dojo.string.substitute(queryTaskUrl.Floor, fset.features[i].attributes), feature: fset.features[i] });
                             buildingCount++;
                         }
                     }
 
                     if (!onLoadBuilding) {
-                        onLoadBuilding = dojo.string.substitute(serviceRequestLayerInfo.BuildingKey, fset.features[0].attributes);
+                        onLoadBuilding = dojo.string.substitute(queryTaskUrl.BuildingKey, fset.features[0].attributes);
                     }
 
                     if (floorSwitcher.IsExpressVisible && !floorSwitcher.IsAccordionVisible) {
@@ -600,8 +600,12 @@ function OnloadFloors(building,floor) {
                         LocateBuildingFloors(arrBuilding[onLoadBuilding], onLoadFloor);
                     }
                     if (floorSwitcher.IsAccordionVisible && floorSwitcher.IsExpressVisible) {
-
-                        InitializeSpinner(arrBuilding[defaultBuilding], onLoadFloor);
+                        if (onLoadBldg) {
+                            InitializeSpinner(arrBuilding[onLoadBuilding], onLoadFloor);
+                        }
+                        else {
+                            InitializeSpinner(arrBuilding[defaultBuilding], onLoadFloor);
+                        }
                         CreateFloorSwitcher(arrBuilding, onLoadBuilding, onLoadFloor);
                         LocateBuildingFloors(arrBuilding[onLoadBuilding], onLoadFloor, shareEnable);
                     }
@@ -623,20 +627,20 @@ function OnloadFloors(building,floor) {
 function CreateSubmitServiceRequestTabContainer(evt, searchContent) {
     var floorLayer = map.getLayer(queryGraphicLayer);
     dojo.byId('divCreateRequestContainer').style.display = "block";
-        CreateDetails(evt, dojo.byId("divSubmitDetails"));
+    CreateDetails(evt, dojo.byId("divSubmitDetails"));
+    dojo.byId("tdDetails").style.display = "none";
+    dojo.byId("tdSubmitForm").style.display = "block";
+    dojo.byId("divSubmitFormInfo").style.display = "none";
+    dojo.byId("divSubmitDetails").style.display = "block";
+    dojo.connect(dojo.byId("tdDetails"), "onclick", function () {
+        if (dojo.byId("divSubmitRequestContainer")) {
+            dojo.destroy(dojo.byId("divSubmitRequestContainer"));
+        }
         dojo.byId("tdDetails").style.display = "none";
         dojo.byId("tdSubmitForm").style.display = "block";
         dojo.byId("divSubmitFormInfo").style.display = "none";
         dojo.byId("divSubmitDetails").style.display = "block";
-        dojo.connect(dojo.byId("tdDetails"), "onclick", function () {
-            if (dojo.byId("divSubmitRequestContainer")) {
-                dojo.destroy(dojo.byId("divSubmitRequestContainer"));
-            }
-            dojo.byId("tdDetails").style.display = "none";
-            dojo.byId("tdSubmitForm").style.display = "block";
-            dojo.byId("divSubmitFormInfo").style.display = "none";
-            dojo.byId("divSubmitDetails").style.display = "block";
-        });
+    });
 
     dojo.byId("tdSubmitForm").onclick = function () {
         ShowSubmitRequestForm();
@@ -721,13 +725,11 @@ function CreateServiceRequestForm() {
     var tr1 = document.createElement('tr');
     var td11 = document.createElement('td');
     td11.align = 'left';
-    td11.vAlign = 'top';
     td11.style.width = '50px';
     td11.appendChild(document.createTextNode('Type:'));
     var td12 = document.createElement('td');
     td12.align = 'left';
     td12.style.paddingLeft = "4px";
-    td12.vAlign = 'top';
     var cbRequestType = document.createElement('input');
     td12.appendChild(cbRequestType);
     var filteringSelect = new dijit.form.ComboBox({
@@ -752,11 +754,9 @@ function CreateServiceRequestForm() {
     var tr2 = document.createElement('tr');
     var td21 = document.createElement('td');
     td21.align = 'left';
-    td21.vAlign = 'top';
     td21.appendChild(document.createTextNode('Description:'));
     var td22 = document.createElement('td');
     td22.align = 'left';
-    td22.vAlign = 'top';
     var txtDescription = document.createElement('textarea');
     txtDescription.id = 'txtDescription';
     txtDescription.className = 'txtArea';
@@ -771,11 +771,9 @@ function CreateServiceRequestForm() {
     tr3.style.height = '25px';
     var td31 = document.createElement('td');
     td31.align = 'left';
-    td31.vAlign = 'top';
     td31.appendChild(document.createTextNode('Name:'));
     var td32 = document.createElement('td');
     td32.align = 'left';
-    td32.vAlign = 'top';
     var txtName = document.createElement('input');
     txtName.id = 'txtName';
     txtName.className = 'txtBox';
@@ -787,11 +785,9 @@ function CreateServiceRequestForm() {
     var tr4 = document.createElement('tr');
     var td41 = document.createElement('td');
     td41.align = 'left';
-    td41.vAlign = 'top';
     td41.appendChild(document.createTextNode('Email:'));
     var td42 = document.createElement('td');
     td42.align = 'left';
-    td42.vAlign = 'top';
     var txtMail = document.createElement('input');
     txtMail.id = 'txtMail';
     txtMail.className = 'txtBox';
@@ -803,11 +799,9 @@ function CreateServiceRequestForm() {
     var tr5 = document.createElement('tr');
     var td51 = document.createElement('td');
     td51.align = 'left';
-    td51.vAlign = 'top';
     td51.appendChild(document.createTextNode('Phone:'));
     var td52 = document.createElement('td');
     td52.align = 'left';
-    td52.vAlign = 'top';
     var txtPhone = document.createElement('input');
     txtPhone.id = 'txtPhone';
     txtPhone.className = 'txtBox';
@@ -878,15 +872,20 @@ function DoIdentify(evt) {
         query.returnGeometry = false;
         var queryTask = new esri.tasks.QueryTask(serviceRequestLayerInfo.BuildingFloorPlan);
         queryTask.execute(query, function (featureSet) {
-            var attr = { "BUILDING": currentBuilding, "FLOOR": currentFloor, "SPACETYPE": "", "SPACEID": "", "SECTION": "" };
+            var attr = {};
+            attr[buildingFloorFields.BuildingFieldName] = currentBuilding;
+            attr[buildingFloorFields.FloorFieldName] = currentFloor;
+            attr[buildingFloorFields.SpaceTypeFieldName] = "";
+            attr[buildingFloorFields.SpaceIdFieldName] = "";
+            attr[buildingFloorFields.SectionFieldName] = "";
             if (featureSet.features.length == 0) {
                 outsideServiceRequest = true;
-                attr.BUILDING = outsideBuilding;
-                attr.FLOOR = 1;
+                attr[buildingFloorFields.BuildingFieldName] = outsideBuilding;
+                attr[buildingFloorFields.FloorFieldName] = 1;
             }
             else if (featureSet.features.length > 0) {
-                attr.BUILDING = featureSet.features[0].attributes[serviceRequestLayerInfo.BuildingAttribute];
-                attr.FLOOR = 1;
+                attr[buildingFloorFields.BuildingFieldName] = featureSet.features[0].attributes[serviceRequestLayerInfo.BuildingAttribute];
+                attr[buildingFloorFields.FloorFieldName] = 1;
                 for (var layerCount = 0; layerCount < operationalLayersCollection.length; layerCount++) {
                     if (operationalLayersCollection[layerCount].isLayerVisible) {
                         if (operationalLayersCollection[layerCount].BuildingAttribute) {
@@ -967,7 +966,7 @@ function CreateDetails(attributes, valueField) {
                     attributes[att] = showNullValueAs;
                 }
             }
-            var dateFields = operationalLayersCollectionRow.DateFields;
+            var dateFields = personLayer.DateFields;
             for (var j = 0; j < dateFields.length; j++) {   //check for date type attributes and format date
                 if (attributes[dateFields[j].ValueField]) {
                     var timeStamp = attributes[dateFields[j].ValueField];
@@ -975,11 +974,11 @@ function CreateDetails(attributes, valueField) {
                 }
             }
 
-            for (var i in operationalLayersCollection[count].InfoPopupFieldsCollection) {
+            for (var i in personLayer.InfoPopupFieldsCollection) {
                 var tr = document.createElement("tr");
                 var td = document.createElement("td");
                 td.className = 'tdDisplayField';
-                td.innerHTML = operationalLayersCollection[count].InfoPopupFieldsCollection[i].DisplayText;
+                td.innerHTML = personLayer.InfoPopupFieldsCollection[i].DisplayText;
                 td.vAlign = 'top';
                 td.style.width = '40%';
                 var td1 = document.createElement("td");
@@ -987,8 +986,8 @@ function CreateDetails(attributes, valueField) {
                 td1.vAlign = 'top';
                 td1.style.width = '60%';
 
-                if (operationalLayersCollection[count].InfoPopupFieldsCollection[i].isLink) {
-                    var value = dojo.string.substitute(operationalLayersCollection[count].InfoPopupFieldsCollection[i].FieldName, attributes).trim();
+                if (personLayer.InfoPopupFieldsCollection[i].isLink) {
+                    var value = dojo.string.substitute(personLayer.InfoPopupFieldsCollection[i].FieldName, attributes).trim();
                     if (value == "N/A") {
                         td1.innerHTML = showNullValueAs;
                     }
@@ -996,21 +995,20 @@ function CreateDetails(attributes, valueField) {
                         var mailAnchor = document.createElement("a");
                         mailAnchor.className = 'mailAnchor';
                         mailAnchor.setAttribute("href", "mailto:" + value);
-                        mailAnchor.appendChild(document.createTextNode(dojo.string.substitute(operationalLayersCollection[count].InfoPopupFieldsCollection[i].FieldName, attributes)));
+                        mailAnchor.appendChild(document.createTextNode(dojo.string.substitute(personLayer.InfoPopupFieldsCollection[i].FieldName, attributes)));
                         td1.appendChild(mailAnchor);
                     }
                 }
                 else
-                    if (dojo.string.substitute(operationalLayersCollection[count].InfoPopupFieldsCollection[i].FieldName, attributes).trim() != ":") {
-                        var value = dojo.string.substitute(operationalLayersCollection[count].InfoPopupFieldsCollection[i].FieldName, attributes);
+                    if (dojo.string.substitute(personLayer.InfoPopupFieldsCollection[i].FieldName, attributes).trim() != ":") {
+                        var value = dojo.string.substitute(personLayer.InfoPopupFieldsCollection[i].FieldName, attributes);
                         if (value == "N/A N/A" || value == "N/A") {
                             td1.innerHTML = showNullValueAs;
                         }
                         else {
-                            td1.innerHTML = dojo.string.substitute(operationalLayersCollection[count].InfoPopupFieldsCollection[i].FieldName, attributes);
+                            td1.innerHTML = dojo.string.substitute(personLayer.InfoPopupFieldsCollection[i].FieldName, attributes);
                         }
                     }
-
                 tr.appendChild(td);
                 tr.appendChild(td1);
                 tBody.appendChild(tr);
@@ -1025,12 +1023,11 @@ function CreateDetails(attributes, valueField) {
 //query the person or place layer to get details of particular person or place while adding new service request or showing general info
 function ShowDetailsInfo(evt) {
     HideCommentsContainer();
-    HideDetailsInfo();
     HideCreateRequestContainer();
     map.infoWindow.hide();
     var title = '';
-    if (dojo.string.substitute(operationalLayersCollection[0].Title, evt.graphic.attributes).trim() != ":") {
-        title = dojo.string.substitute(operationalLayersCollection[0].Title, evt.graphic.attributes);
+    if (dojo.string.substitute(personLayer.Title, evt.graphic.attributes).trim() != ":") {
+        title = dojo.string.substitute(personLayer.Title, evt.graphic.attributes);
     }
     else {
         title = showNullValueAs;
@@ -1073,9 +1070,8 @@ function ShowDetailsInfo(evt) {
                 ServiceRequestInfo(evt.graphic.attributes, title, null, windowPoint);
             }
             else {
-                HideDetailsInfo();
                 selectedGraphics = evt.mapPoint;
-                SelectedId = dojo.string.substitute(personLayer.ShareFields, evt.graphic.attributes);
+                SelectedId = dojo.string.substitute(operationalLayersCollection[0].ShareFields, evt.graphic.attributes);
                 CreateDetails(evt.graphic.attributes, dojo.byId("divPersonDetails"));
                 ShowInfoWindow(windowPoint, title, dojo.byId('divDetailsInfo'), dojo.byId("detailsInfoTitle"));
             }
@@ -1097,8 +1093,6 @@ function ShowInfoWindow(windowPoint, title, detailsContainer, headerContainer) {
     map.infoWindow.resize(infoPopupWidth, infoPopupHeight);
     var screenPoint = map.toScreen(windowPoint);
     screenPoint.y = map.height - screenPoint.y;
-
-    map.infoWindow.setLocation(screenPoint);
     setTimeout(function () {
         map.infoWindow.show(screenPoint);
     }, 500);

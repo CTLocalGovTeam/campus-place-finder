@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8" ?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <!--
  | Version 10.1.1
  | Copyright 2012 Esri
@@ -16,7 +16,7 @@
  | limitations under the License.
 -->
 <Messages>
-  <addressToLocate>Enter address to Locate.</addressToLocate>
+  <addressToLocate>Enter address to locate.</addressToLocate>
   <noLocationDet> Location details not found.</noLocationDet>
   <noFeatureFound>Related feature not found.</noFeatureFound>
   <noBuildingFound>Building not found at current location.</noBuildingFound>

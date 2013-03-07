@@ -115,7 +115,6 @@ function HideMapLayers() {
 
 //Animate basemap container
 function ShowBaseMaps() {
-
     if (dojo.coords("divAppContainer").h > 0) {
         dojo.replaceClass("divAppContainer", "hideContainerHeight", "showContainerHeight");
         dojo.byId('divAppContainer').style.height = '0px';
@@ -138,13 +137,13 @@ function ShowBaseMaps() {
     }
     else {
         dojo.byId('divLayerContainer').style.height = cellHeight + "px";
-        dojo.byId('divLayerContentHolder').style.height = (cellHeight - 15) + "px";
+        dojo.byId('divLayerContentHolder').style.height = (cellHeight - 8) + "px";
         dojo.byId('divLayerContentHolder').style.top = "0px";
         dojo.replaceClass("divLayerContainer", "showContainerHeight", "hideContainerHeight");
     }
 
     setTimeout(function () {
-            CreateScrollbar(dojo.byId("divLayerHolder"), dojo.byId("divLayerContentHolder"));
+        CreateScrollbar(dojo.byId("divLayerContainerHolder"), dojo.byId("divLayerContentHolder"));
     }, 500);
 }
 
@@ -172,6 +171,7 @@ function AddFeatureLayers() {
             map.addLayer(featureLayer);
             if (operationalLayersCollection[i].BuildingAttribute) {
                 dojo.connect(featureLayer, "onClick", function (evt) {
+                    outsideServiceRequest = false;
                     ShowDetailsInfo(evt);
                 });
             }

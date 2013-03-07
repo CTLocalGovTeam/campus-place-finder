@@ -61,7 +61,7 @@ var infoWindowDescriptionFields;
 var outsideBuilding = "outside"; //variable used to identify a service request outside a building
 
 var showNullValueAs; //variable to store the default value for replacing null values
-var mapSharingOptions; //variable for storing the tiny service URL 
+var mapSharingOptions; //variable for storing the tiny service URL
 
 var baseMapLayers; //Variable for storing base map layers
 var windowURL = window.location.toString();
@@ -72,6 +72,16 @@ var messages; //variable to store alert messages
 
 var infoPopupHeight; //variable used for storing the info window height
 var infoPopupWidth; //variable used for storing the info window width
+
+var lastSearchString; //variable for store the last search string
+var stagedSearch; //variable for store the time limit for search
+var lastSearchTime; //variable for store the time of last search
+var buildingID;
+var floorID;
+var serviceRequestFields;
+var databaseFields;
+var buildingFloorFields;
+var onLoadBldg;
 
 //This initialization function is called when the DOM elements are ready
 function Init() {
@@ -87,8 +97,6 @@ function Init() {
         }
     });
 
-    var eventFired = false;
-
     //Identify the key presses while implementing auto-complete and assign appropriate actions
     dojo.connect(dojo.byId("txtAddress"), 'onkeyup', function (evt) {//onkey up event for auto search functionality
         if (evt) {
@@ -98,23 +106,48 @@ function Init() {
                 RemoveChildren(dojo.byId('tblAddressResults'));
                 return;
             }
-            if (!((keyCode > 45 && keyCode < 58) || (keyCode > 64 && keyCode < 91) || (keyCode > 95 && keyCode < 105) || keyCode == 8 || keyCode == 110 || keyCode == 188)) {
+            if ((!((evt.keyCode >= 46 && evt.keyCode < 58) || (evt.keyCode > 64 && evt.keyCode < 91) || (evt.keyCode > 95 && evt.keyCode < 106) || evt.keyCode === 8 || evt.keyCode === 110 || evt.keyCode === 188)) || (evt.keyCode === 86 && evt.ctrlKey) || (evt.keyCode === 88 && evt.ctrlKey)) {
                 evt = (evt) ? evt : event;
                 evt.cancelBubble = true;
                 if (evt.stopPropagation) evt.stopPropagation();
                 return;
             }
-            eventFired = true;
-            if (dojo.byId('txtAddress').value.trim() != "") {
-                dojo.byId("imgSearchLoader").style.display = "block";
-            }
-            setTimeout(function () {
-                if (eventFired) {
-                    eventFired = false;
-                    Locate();
+            if (dojo.coords("divAddressContent").h > 0) {
+                if (dojo.byId('txtAddress').value.trim() != "") {
+                    if (lastSearchString !== dojo.byId("txtAddress").value.trim()) {
+                        lastSearchString = dojo.byId("txtAddress").value;
+                        RemoveChildren(dojo.byId("tblAddressResults"));
+                        dojo.byId("imgSearchLoader").style.display = "block";
+
+                        // Clear any staged search
+                        clearTimeout(stagedSearch);
+                        if (dojo.byId("txtAddress").value.trim().length > 0) {
+                            stagedSearch = setTimeout(function () {
+                                Locate();
+                                lastSearchedValue = dojo.byId("txtAddress").value.trim();
+                            }, 500);
+                        }
+                    }
+                } else {
+                    lastSearchString = dojo.byId("txtAddress").value.trim();
+                    dojo.byId("imgSearchLoader").style.display = "none";
+                    RemoveChildren(dojo.byId("tblAddressResults"));
+                    SetHeightAddressResults();
                 }
-            }, 1000);
+            }
         }
+    });
+
+    dojo.connect(dojo.byId("txtAddress"), 'onpaste', function (evt) {
+        setTimeout(function () {
+            Locate();
+        }, 100);
+    });
+
+    dojo.connect(dojo.byId("txtAddress"), 'oncut', function (evt) {
+        setTimeout(function () {
+            Locate();
+        }, 100);
     });
 
     dojo.connect(dojo.byId("imgLocate"), 'onclick', function (evt) {
@@ -128,6 +161,7 @@ function Init() {
     });
 
     var responseObject = new js.config();
+    this.document.title = responseObject.ApplicationName;
     mapSharingOptions = responseObject.MapSharingOptions;
     baseMapLayers = responseObject.BaseMapLayers;
 
@@ -137,7 +171,7 @@ function Init() {
     imgBasemap.title = "Switch Basemap";
     imgBasemap.id = "imgBaseMap";
     imgBasemap.style.cursor = "pointer";
-    imgBasemap.onclick = function () {//onclick event for image on base-map header 
+    imgBasemap.onclick = function () {//onclick event for image on base-map header
         ShowBaseMaps();
     }
     var infoWindow = new mobile.InfoWindow({
@@ -200,28 +234,31 @@ function Init() {
     serviceRequest = responseObject.ServiceRequest;
     serviceRequestLayerInfo = serviceRequest.LayerInfo;
 
-    queryTaskUrl = responseObject.QueryURL;
+    queryTaskUrl = responseObject.QueryTaskURL;
     personLayer = responseObject.PersonLayer;
     placeLayer = responseObject.PlaceLayer;
     floorSwitcher = responseObject.FloorSwitcher;
     operationalLayersCollection = responseObject.OperationalLayers;
     showNullValueAs = responseObject.ShowNullValueAs;
     commentsInfoPopupFieldsCollection = responseObject.CommentsInfoPopupFieldsCollection;
-
+    serviceRequestFields = responseObject.ServiceRequestFields;
+    databaseFields = responseObject.DatabaseFields;
+    buildingFloorFields = responseObject.BuildingFloorFields;
     infoPopupHeight = responseObject.InfoPopupHeight;
     infoPopupWidth = responseObject.InfoPopupWidth;
     dojo.byId('divAddressContainer').style.display = "block";
     dojo.connect(dojo.byId('txtAddress'), "ondblclick", ClearDefaultText);
     dojo.connect(dojo.byId('txtAddress'), "onblur", ReplaceDefaultText);
+    lastSearchString = dojo.byId("txtAddress").value.trim();
     dojo.connect(dojo.byId('txtAddress'), "onfocus", function () {
-        this.style.color = "#fff"; 
+        this.style.color = "#fff";
     });
     //enable default search based on config parameters
     if (defaultSearch.Place) {
-        showPlaceSearch();
+        ShowPlaceSearch();
     }
     else {
-        showPersonSearch();
+        ShowPersonSearch();
     }
     CreateBaseMapComponent();
     geometryService = new esri.tasks.GeometryService(responseObject.GeometryService);
@@ -246,23 +283,42 @@ function Init() {
         var startExtent = new esri.geometry.Extent(parseFloat(zoomExtent[0]), parseFloat(zoomExtent[1]), parseFloat(zoomExtent[2]), parseFloat(zoomExtent[3]), map.spatialReference);
         map.setExtent(startExtent);
 
-
         //store ID of shared info-window from URL
         var FeatureID;
+        var bldgFeatureID;
+        var flrFeatureID;
         var url = esri.urlToObject(window.location.toString());
         if (url.query && url.query != null) {
             if (url.query.extent.split("$SelectedId=").length > 0) {
                 FeatureID = url.query.extent.split("$SelectedId=")[1];
             }
+            if (url.query.extent.split("$buildingID=").length > 0) {
+                var bldgID = url.query.extent.split("$buildingID=")[1];
+                if (bldgID) {
+                    if (bldgID.split("$floorID=").length > 0) {
+                        bldgFeatureID = bldgID.split("$floorID=")[0];
+                        flrFeatureID = bldgID.split("$floorID=")[1];
+                    }
+                }
+            }
         }
 
-        MapInitFunction(map, evt, FeatureID);
+        if (bldgFeatureID && flrFeatureID) {
+            MapInitFunction(map, evt, bldgFeatureID);
+        } else {
+            MapInitFunction(map, evt, FeatureID);
+        }
+        if (bldgFeatureID && flrFeatureID) {
+            onLoadBldg = true;
+            currentBuilding = bldgFeatureID;
+            OnloadFloors(bldgFeatureID, flrFeatureID);
+        }
         if (FeatureID) {
             if (isNaN(FeatureID)) {
                 // query operational layer for getting the location of shared info-window based on the its ID
                 var queryTask = new esri.tasks.QueryTask(operationalLayersCollection[0].MapURL);
                 var query = new esri.tasks.Query();
-                query.where = personLayer.ShareQuery.split("${0}")[0] + FeatureID + personLayer.ShareQuery.split("${0}")[1];
+                query.where = operationalLayersCollection[0].ShareQuery.split("${0}")[0] + FeatureID + operationalLayersCollection[0].ShareQuery.split("${0}")[1];
                 query.outFields = ["*"];
                 query.outSpatialReference = map.spatialReference;
                 query.returnGeometry = true;
@@ -270,12 +326,14 @@ function Init() {
                     var windowPoint = features.features[0].geometry.getExtent().getCenter();
                     selectedGraphics = windowPoint;
                     var title;
-                    if (dojo.string.substitute(operationalLayersCollection[0].Title, features.features[0].attributes).trim() != ":") {
-                        title = dojo.string.substitute(operationalLayersCollection[0].Title, features.features[0].attributes);
+                    if (dojo.string.substitute(personLayer.Title, features.features[0].attributes).trim() != ":") {
+                        title = dojo.string.substitute(personLayer.Title, features.features[0].attributes);
                     }
                     else {
                         title = showNullValueAs;
                     }
+                    onLoadBldg = true;
+                    currentBuilding = dojo.string.substitute(operationalLayersCollection[0].Building, features.features[0].attributes);
                     OnloadFloors(dojo.string.substitute(operationalLayersCollection[0].Building, features.features[0].attributes), dojo.string.substitute(operationalLayersCollection[0].Floor, features.features[0].attributes));
                     // querying the person layer for getting the details of shared info-window based on its ID
                     var queryTask1 = new esri.tasks.QueryTask(personLayer.QueryURL);
@@ -283,9 +341,9 @@ function Init() {
                     var condition = dojo.string.substitute(personLayer.WhereQuery, features.features[0].attributes);
                     query1.where = condition;
                     query1.outFields = [personLayer.OutFields];
+
                     setTimeout(function () {
                         queryTask1.execute(query1, function (feature) {
-
                             if (feature.features.length > 0) {
                                 for (var key in feature.features[0].attributes) {
                                     if (!feature.features[0].attributes[key]) {
@@ -316,22 +374,25 @@ function Init() {
                 });
             }
             else {
-                //share info-window for existing service request 
+                //share info-window for existing service request
                 var queryTask = new esri.tasks.QueryTask(serviceRequestLayerInfo.ServiceURL);
                 var query = new esri.tasks.Query();
                 query.where = serviceRequestLayerInfo.ShareQuery.split("${0}")[0] + FeatureID + serviceRequestLayerInfo.ShareQuery.split("${0}")[1];
                 query.outFields = ["*"];
                 query.outSpatialReference = map.spatialReference;
                 query.returnGeometry = true;
-
                 queryTask.execute(query, function (features) {
-                    if (features.features[0].attributes.building != outsideBuilding) {
-                        OnloadFloors(dojo.string.substitute(serviceRequestLayerInfo.Building, features.features[0].attributes), dojo.string.substitute(serviceRequestLayerInfo.Floor, features.features[0].attributes));
+                    onLoadBldg = true;
+                    var buildingAttribute = dojo.string.substitute(serviceRequestLayerInfo.Building, features.features[0].attributes);
+                    if (buildingAttribute != outsideBuilding) {
+                        OnloadFloors(buildingAttribute, dojo.string.substitute(serviceRequestLayerInfo.Floor, features.features[0].attributes));
                     }
                     else {
                         OnloadFloors();
                     }
                     isSubmitDisabled = true;
+                    currentFloor = dojo.string.substitute(serviceRequestLayerInfo.Floor, features.features[0].attributes);
+                    currentBuilding = buildingAttribute;
                     ToggleServiceRequestLayer();
                     ShowServiceRequestDetails(features.features[0].geometry, features.features[0].attributes);
                     evt = (evt) ? evt : event;
@@ -339,17 +400,22 @@ function Init() {
                     if (evt.stopPropagation) {
                         evt.stopPropagation();
                     }
-                    map.setExtent(startExtent); //set the extent of shared map 
+                    map.setExtent(startExtent); //set the extent of shared map
                 });
 
             }
         }
     });
+
+    dojo.connect(dojo.byId('imgHelp'), "onclick", function () {
+        window.open(responseObject.HelpURL);
+    });
+
     dojo.connect(map, "onExtentChange", function (evt) {
         if (selectedGraphics) {//used to reset the position of info-window when extent is changed
             var screenPoint = map.toScreen(selectedGraphics);
             screenPoint.y = map.height - screenPoint.y;
-          
+
             setTimeout(function () {
                 map.infoWindow.setLocation(screenPoint);
             }, 700);
@@ -389,7 +455,7 @@ function MapInitFunction(map, evt, featureid) {
                         }
                     });
 
-    //add map overview 
+    //add map overview
     var overviewMapDijit = new esri.dijit.OverviewMap({
         map: map,
         attachTo: "bottom-left",
@@ -416,7 +482,7 @@ function MapInitFunction(map, evt, featureid) {
     if (!featureid) {
         OnloadFloors();
     }
-    liftHandler();
+    LiftHandler();
 
     if (serviceRequest.isEnabled) {
         AddServiceRequestLayerOnMap();
@@ -432,4 +498,4 @@ function MapInitFunction(map, evt, featureid) {
     dojo.connect(dojo.byId('imgMinus'), "onclick", LoadPreviousBuilding);
     dojo.connect(map.infoWindow, "onHide", HideInfoWindow);
 }
-dojo.addOnLoad(Init);//call init function when application is loaded
+dojo.addOnLoad(Init); //call init function when application is loaded
